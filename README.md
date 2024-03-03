@@ -98,16 +98,16 @@ node.create('vitalik.raffy.eth').record = vitalik;
 
 // import record from JSON at an existing node
 node.find('raffy.eth').importJSON({
-	name: 'Raffy',
-	$eth: '0x51050ec063d393217B436747617aD1C2285Aeeee'
+    name: 'Raffy',
+    $eth: '0x51050ec063d393217B436747617aD1C2285Aeeee'
 });
 
 // import some subdomains
 // "." is the parent node record and indicates that keys are subdomains
 root.find('eth').importJSON({
-	'.':    { name: 'Ether'   $eth: '0x0000000000000000000000000000000000000000' }, // eth
+    '.':    { name: 'Ether'   $eth: '0x0000000000000000000000000000000000000000' }, // eth
     slobo:  { name: 'Alex',   $eth: '0x0000000000000000000000000000000000000001' }, // slobo.eth
-	darian: { name: 'Darian', $eth: '0x0000000000000000000000000000000000000002' }  // darian.eth
+    darian: { name: 'Darian', $eth: '0x0000000000000000000000000000000000000002' }  // darian.eth
 });
 
 // create reverse nodes
