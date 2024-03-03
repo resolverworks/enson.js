@@ -41,7 +41,7 @@ export class Node extends Map {
 					ks = ks.trim();
 					if (!ks || ks === LABEL_SELF) continue;
 					for (let k of ks.split(/\s+/)) {
-						this.create(k).import_from_json(v);
+						this.create(k).importJSON(v);
 					}
 				}
 			}
@@ -91,7 +91,10 @@ export class Node extends Map {
 	}
 	print() {
 		this.scan((x, n) => {
-			console.log(`${'  '.repeat(n)}${x.label}${x.record?'*':''} (${x.size})`);
+			let line = '  '.repeat(n) + x.label;
+			if (x.record) line += '*';          // label* => this node has a record
+			if (x.size) line += ` (${x.size})`; // (#) => this node has subdomains
+			console.log(line);
 		});
 	}
 }

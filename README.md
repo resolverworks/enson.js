@@ -50,7 +50,7 @@ onion.toURL(); // "http://2gzyxa5ihm7nsggfxnu52rck2vv4rvmdlkiu3zzui5du4xyclenq.o
 
 let json = ContentHash.fromEntry('json', {nice: 'chonk'});
 json.toObject(); // {json: {nice: "chonk"}}
-json.toURL(); // "data:text/plain;base64,bmljZSBjaG9uaw=="
+json.toURL(); // "data:application/json;base64,eyJuaWNlIjoiY2hvbmsifQ=="
 
 let file = ContentHash.fromEntry('video/mp4', readFileSync('chonk.mp4'));
 ```
@@ -63,16 +63,17 @@ import {Record} from '@resolverworks/enson';
 // construct KV records in human-readable notation
 // minimal memory footprint, everything is string/Uint8Array 
 let vitalik = Record.from({
-	name: 'Vitalik',
-	$eth: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
-	$btc: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
-	avatar: 'eip155:1/erc1155:0xb32979486938aa9694bfc898f35dbed459f44424/10063',
-	'#ipfs': 'k2jmtxrxbr58aa3716vvr99qallufj3qae595op83p37jod4exujup32',
-	'#pubkey': {x: 1, y: 2},
-	'#name': 'vitalik.eth', // reverse name
+    name: 'Vitalik',
+    $eth: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
+    $btc: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
+    avatar: 'eip155:1/erc1155:0xb32979486938aa9694bfc898f35dbed459f44424/10063',
+    '#ipfs': 'k2jmtxrxbr58aa3716vvr99qallufj3qae595op83p37jod4exujup32',
+    '#pubkey': {x: 1, y: 2},
+    '#name': 'vitalik.eth', // reverse name
 });
 
 // supports all standard resolver functions
+let name = rec.text('name'); // "Vitalik"
 let addr60 = rec.addr(60); // Uint8Array(20)
 let hash = rec.contenthash(); // Uint8Array(38)
 
@@ -80,9 +81,11 @@ let hash = rec.contenthash(); // Uint8Array(38)
 vitalik.get('name'); // "Vitalik"
 vitalik.get(60); // Address
 vitalik.get(Record.CONTENTHASH); // Contenthash
+vitalik.get(Record.PUBKEY); // Pubkey
+vitalik.get(Record.NAME); // "vitalik.eth"
 ```
 
-### [Node](./src/Node.js)
+### Node
 
 ```js
 import {Node} from '@resolverworks/enson';
@@ -100,9 +103,15 @@ node.find('raffy.eth').importJSON({
 });
 
 // import some subdomains
-node.find('eth').importJSON({
-	slobo: {
-		name: 'Alex'
-	},
+// "." is the parent node record and indicates that keys are subdomains
+root.find('eth').importJSON({
+	'.':    { name: 'Ether'   $eth: '0x0000000000000000000000000000000000000000' }, // eth
+    slobo:  { name: 'Alex',   $eth: '0x0000000000000000000000000000000000000001' }, // slobo.eth
+	darian: { name: 'Darian', $eth: '0x0000000000000000000000000000000000000002' }  // darian.eth
 });
+
+// create reverse nodes
+for (let rec of )
+
+
 ```
