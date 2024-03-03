@@ -1,7 +1,7 @@
 import { getCoderByCoinType, coinNameToTypeMap } from '@ensdomains/address-encoder';
 import { hexToBytes, bytesToHex, toBytes } from '@noble/hashes/utils';
 import { ens_normalize } from '@adraffy/ens-normalize';
-import { Base64URL, CID, Base32, uvarint, Base64 } from '@adraffy/cid';
+import { Base64URL, Base32, CID, uvarint, Base64 } from '@adraffy/cid';
 import { keccak_256 } from '@noble/hashes/sha3';
 import { eth as eth$1 } from '@ensdomains/address-encoder/coins';
 
@@ -732,4 +732,4 @@ class Node extends Map {
 	}
 }
 
-export { Address, Coin, ContentHash, Node, Record };
+export { Address, Arweave, Coin, ContentHash, DataURL, GenericURL, IPFS, IPNS, Node, Onion, Record, Swarm };

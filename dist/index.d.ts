@@ -15,14 +15,24 @@ export class Pubkey {
 	toJSON(): {x: string, y: string};
 }
 
-export type GatewayFn = (params: {hash: string, data: Uint8Array, spec: ContentHashSpec}) => string;
-
 export class ContentHashSpec {
 	readonly codec: number;
 	readonly name: string;
 	readonly scheme?: string;
 	gateway?: GatewayFn;
 }
+
+export type GatewayFn = (params: {hash: string, data: Uint8Array, spec: ContentHashSpec}) => string;
+
+export const Onion: ContentHashSpec | {
+	fromPubkey(pubkey: DataLike, version?: number): Uint8Array;
+};
+export const GenericURL: ContentHashSpec;
+export const DataURL: ContentHashSpec;
+export const IPFS: ContentHashSpec;
+export const IPNS: ContentHashSpec;
+export const Swarm: ContentHashSpec;
+export const Arweave: ContentHashSpec;
 
 export class ContentHash {
 	static fromParts(spec: ContentHashSpec | number, data: Uint8Array): ContentHash;
@@ -62,6 +72,7 @@ export class Address {
 	get type(): number;
 	get name(): string;	
 	toObject(): {type: number, name: string, value: string};
+	toPhex(): string;
 }
 
 export type RecordObject = {[key: string]: any};

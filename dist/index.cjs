@@ -735,7 +735,14 @@ class Node extends Map {
 }
 
 exports.Address = Address;
+exports.Arweave = Arweave;
 exports.Coin = Coin;
 exports.ContentHash = ContentHash;
+exports.DataURL = DataURL;
+exports.GenericURL = GenericURL;
+exports.IPFS = IPFS;
+exports.IPNS = IPNS;
 exports.Node = Node;
+exports.Onion = Onion;
 exports.Record = Record;
+exports.Swarm = Swarm;
