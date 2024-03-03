@@ -105,13 +105,21 @@ node.find('raffy.eth').importJSON({
 // import some subdomains
 // "." is the parent node record and indicates that keys are subdomains
 root.find('eth').importJSON({
-    '.':    { name: 'Ether'   $eth: '0x0000000000000000000000000000000000000000' }, // eth
+    '.':    { name: 'Ether',  $eth: '0x0000000000000000000000000000000000000000' }, // eth
     slobo:  { name: 'Alex',   $eth: '0x0000000000000000000000000000000000000001' }, // slobo.eth
     darian: { name: 'Darian', $eth: '0x0000000000000000000000000000000000000002' }  // darian.eth
 });
 
+[...root.nodes()] // iterator of all nodes
+[...root.records()] // iterator of all records
+
 // create reverse nodes
-for (let rec of )
-
-
+let rev = root.create('addr.reverse');
+for (let node of root.nodes()) {
+	let eth = node.record?.get(60);
+	if (!eth) continue;
+	rev.ensureChild(eth.toString().slice(2)).record = Record.from({
+		[Record.NAME]: node.name
+	});	
+}
 ```
