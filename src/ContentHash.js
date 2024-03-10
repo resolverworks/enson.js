@@ -1,7 +1,8 @@
 import {
 	error_with, array_equals, maybe_phex,
 	phex_from_bytes, bytes_from_phex, 
-	utf8_from_bytes, bytes_from_utf8
+	utf8_from_bytes, bytes_from_utf8, 
+	is_number, is_string
 } from './utils.js';
 import {CID, uvarint, Base64URL, Base64, Base32} from '@adraffy/cid';
 import {keccak_256} from '@noble/hashes/sha3';
@@ -39,7 +40,7 @@ const ONION_PROTO = {
 	toURL(v) {
 		return `http://${this.toHash(v)}${ONION_SUFFIX}`; 
 	},
-	gateway: ({hash}) => `https://${hash}.onion.to`
+	gateway: hash => `https://${hash}.onion.to`
 };
 const Onion_Legacy = {
 	...ONION_PROTO,
@@ -55,12 +56,15 @@ const Onion_Legacy = {
 export const Onion = {
 	...ONION_PROTO,
 	codec: 0x1BD,
+	toPubkey(v) {
+		return v.subarray(0, 32);
+	},
 	toHash(v) {
-		return Base32.encode(this.toObject(v).pubkey);
+		return Base32.encode(this.toPubkey(v));
 	},
 	toObject(v) {
 		return {
-			pubkey: v.subarray(0, 32),
+			pubkey: this.toPubkey(v),
 			checksum: v.subarray(32, 34),
 			version: v[34]
 		};
@@ -177,35 +181,35 @@ export const IPFS = Object.assign(new CIDHash, {
 	codec: 0xE3,
 	name: 'IPFS',
 	scheme: 'ipfs',
-	gateway: ({hash}) => `https://cloudflare-ipfs.com/ipfs/${hash}`,
+	gateway: hash => `https://cloudflare-ipfs.com/ipfs/${hash}`,
 });
 
 export const IPNS = Object.assign(new CIDHash, {
 	codec: 0xE5,
 	name: 'IPNS',
 	scheme: 'ipns',
-	gateway: ({hash}) => `https://${hash}.ipfs2.eth.limo`,
+	gateway: hash => `https://${hash}.ipfs2.eth.limo`,
 });
 
 export const Swarm = Object.assign(new CIDHash, {
 	codec: 0xE4,
 	name: 'Swarm',
 	scheme: 'bzz',
-	gateway: ({hash}) => `https://${hash}.bzz.link`
+	gateway: hash => `https://${hash}.bzz.link`
 });
 
 export const Arweave = Object.assign(new CodedHash, {
 	codec: 0xB29910,
 	name: 'Arweave',
 	scheme: 'ar',
-	gateway: ({hash}) => `https://arweave.net/${hash}`,
+	gateway: hash => `https://arweave.net/${hash}`,
 	coder: Base64URL,
 	validate(v) { 
 		if (v.length != 32) throw new Error('expected 32 bytes');
 	}
 });
 
-const SPECS = [
+export const SPECS = Object.freeze([
 	IPFS,
 	IPNS,
 	Swarm,
@@ -214,21 +218,23 @@ const SPECS = [
 	Onion,
 	DataURL,
 	GenericURL
-];
+]);
 const CODEC_MAP = new Map(SPECS.map(x => [x.codec, x]));
 const SCHEME_MAP = new Map(SPECS.filter(x => x.scheme).map(x => [x.scheme, x]));
 
-function encode_contenthash(codec, data) {
-	let len = [];
-	uvarint.write(len, codec);
-	let v = new Uint8Array(len.length + data.length);
-	v.set(len);
-	v.set(data, len.length);
-	return v;
-}
 export class ContentHash {
-	static fromParts(spec, data) {
-		return new this(encode_contenthash(spec.codec ?? spec, data));
+	static fromParts(codec, data) {
+		if (!is_number(codec)) {
+			if (!codec.codec) throw error_with('expected codec', {codec});
+			codec = codec.codec;
+		}
+		data = bytes_from_phex(data);
+		let len = [];
+		uvarint.write(len, codec);
+		let v = new Uint8Array(len.length + data.length);
+		v.set(len);
+		v.set(data, len.length);
+		return new this(v);
 	}
 	static fromOnion(hash) {
 		// https://github.com/torproject/torspec/blob/main/rend-spec-v3.txt
@@ -260,16 +266,14 @@ export class ContentHash {
 			return this.fromOnion(value);
 		} 
 		// the key didn't hint
-		if (value instanceof ContentHash) {
+		if (value instanceof this) {
 			return value;
-		} else if (typeof value === 'string') {
+		} else if (is_string(value)) {
 			if (maybe_phex(value)) {
 				return this.fromBytes(value);
 			} else {
 				return this.fromURL(value);
 			}
-		// } else {
-		// 	return this.fromEntry(value.type, value.hash);
 		}
 		throw error_with('unknown contenthash', {key, value});
 	}
@@ -294,34 +298,34 @@ export class ContentHash {
 	constructor(bytes) {
 		this.bytes = bytes;
 	}
-	get spec() { return this.toParts()[0]; }
-	get data() { return this.toParts()[1]; }
-	toParts() {
-		let {bytes} = this;
-		let [codec, pos] = uvarint.read(bytes);
-		let spec = CODEC_MAP.get(codec);
-		let data = bytes.subarray(pos);
-		return [spec, data];
+	get codec() {
+		return uvarint.read(this.bytes)[0];
 	}
-	toHash() { 
-		let [spec, data] = this.toParts();
-		return spec.toHash(data); 
+	get spec() { 
+		return CODEC_MAP.get(this.codec);
+	}
+	get data() {
+		return this._data.slice();
+	}
+	get _data() {
+		let v = this.bytes;
+		return v.subarray(uvarint.read(v)[1]);
+	}
+	toHash() {
+		return this.spec.toHash(this._data); 
 	}
 	toObject() {
-		let [spec, data] = this.toParts();
-		return spec.toObject(data); 
+		return this.spec.toObject(this._data); 
 	}
-	toEntry() { 
-		let [spec, data] = this.toParts();
-		return spec.toEntry(data);
+	toEntry() {
+		return this.spec.toEntry(this._data);
 	}
 	toURL() { 
-		let [spec, data] = this.toParts();
-		return spec.toURL(data); 
+		return this.spec.toURL(this._data); 
 	}
 	toGatewayURL() {
-		let [spec, data] = this.toParts();
-		return spec.gateway?.({spec, data, hash: spec.toHash(data)}) ?? spec.toURL(data);
+		let {spec, _data: v} = this;
+		return spec.gateway?.(spec.toHash(v), spec, v) ?? spec.toURL(v);
 	}
 	toPhex() {
 		return phex_from_bytes(this.bytes); 

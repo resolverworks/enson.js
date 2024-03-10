@@ -13,7 +13,7 @@ function utf8_from_bytes(v) {
 
 function bytes_from_phex(x) {
 	if (x instanceof Uint8Array) {
-		return x;
+		return x; // not a copy
 	} else if (Array.isArray(x)) {
 		return Uint8Array.from(x);
 	} else if (maybe_phex(x)) {
@@ -28,7 +28,7 @@ function phex_from_bytes(v) {
 function bytes32_from(x) {
 	if (x instanceof Uint8Array) {
 		if (x.length !== 32) throw error_with('expected 32-bytes', {value: x});
-		return x;
+		return x; // not a copy
 	}
 	return utils.hexToBytes(BigInt(x).toString(16).padStart(64, '0').slice(-64));
 }
@@ -38,7 +38,14 @@ function split_norm(s) {
 }
 
 function maybe_phex(s) {
-	return typeof s === 'string' && /^0x/i.test(s);
+	return is_string(s) && /^0x/i.test(s);
+}
+
+function is_number(x) {
+	return typeof x === 'number';
+}
+function is_string(x) {
+	return typeof x === 'string';
 }
 
 function error_with(message, options, cause) {
@@ -60,14 +67,14 @@ function array_equals(a, b) {
 	return c;
 }
 
-const cache = new Map();
-
+const COINS = new Map();
 const TYPE_ETH = 60;
 const MSB = 0x80000000;
 
+// patch around strict evm parsing
 const eth0 = addressEncoder.getCoderByCoinType(TYPE_ETH).decode;
 function eth(s) {
-	if (typeof s === 'string') {
+	if (is_string(s)) {
 		let v = bytes_from_phex(s);
 		if (v.length == 20) {
 			let rest = s.slice(2);
@@ -82,35 +89,39 @@ function eth(s) {
 // TODO: should this be BigInt?
 class Coin {
 	static fromType(type) {
-		let coin = cache.get(type);
+		let coin = COINS.get(type);
 		if (!coin) {
 			let {name, encode, decode} = addressEncoder.getCoderByCoinType(type);
 			if (decode === eth0) decode = eth;
-			coin = Object.assign(new Coin, {type, name, encode, decode});
-			cache.set(type, coin);
+			coin = Object.freeze(Object.assign(new Coin, {type, name, encode, decode}));
+			COINS.set(type, coin);
 		}
 		return coin;
 	}
-	static from(query) {
-		if (typeof query === 'number') {
-			return this.fromType(query);
-		} else if (typeof query === 'string') {
-			query = {name: query};
-		}
-		let {type, name, chain} = query;
-		if (name) {
-			type = addressEncoder.coinNameToTypeMap[name];
-		} else if (typeof chain === 'number') {
-			if (chain === 1) {
-				type = TYPE_ETH;
-			} else {
-				type = chain + MSB;
-			}
-		}
-		if (typeof type !== 'number') {
-			throw error_with('unable to derive coin type', query);
-		}
+	static fromName(name) {
+		let type = addressEncoder.coinNameToTypeMap[name];
+		if (!is_number(type)) throw error_with(`unknown coin: ${name}`, {name});
 		return this.fromType(type);
+	}
+	static fromChain(chain) {
+		return this.fromType(chain === 1 ? TYPE_ETH : chain + MSB)
+	}
+	static from(x) {
+		if (x instanceof this) {
+			return x;
+		} else if (is_number(x)) {
+			return this.fromType(x);
+		} else if (is_string(x)) {
+			return this.fromName(x);
+		}
+		let {type, name, chain} = x;
+		if (type) {
+			return this.fromType(type);
+		} else if (name) {
+			return this.fromName(name);
+		} else {
+			return this.fromChain(chain);
+		}
 	}
 	get chain() {
 		let {type} = this;
@@ -131,6 +142,7 @@ class Address {
 		let coin = Coin.fromType(type);
 		let v = bytes_from_phex(x);
 		coin.encode(v); // validate
+		if (v === x) v = v.slice();
 		return new this(coin, v);
 	}
 	constructor(coin, bytes) {
@@ -139,19 +151,22 @@ class Address {
 	}
 	get type() { return this.coin.type; }
 	get name() { return this.coin.name; }
+	get value() { 
+		let {coin, bytes} = this;
+		return coin.encode(bytes);
+	}
 	toObject() {
-		let {type, name, bytes} = this;
-		return {type, name, value: this.toString(), bytes};
+		let {type, name, value, bytes} = this;
+		return {type, name, value, bytes};
 	}
 	toPhex() {
 		return phex_from_bytes(this.bytes);
 	}
 	toString() {
-		let {coin, bytes} = this;
-		return coin.encode(bytes);
+		return this.value;
 	}
 	toJSON() {
-		return this.toString();
+		return this.value;
 	}
 }
 
@@ -188,7 +203,7 @@ const ONION_PROTO = {
 	toURL(v) {
 		return `http://${this.toHash(v)}${ONION_SUFFIX}`; 
 	},
-	gateway: ({hash}) => `https://${hash}.onion.to`
+	gateway: hash => `https://${hash}.onion.to`
 };
 const Onion_Legacy = {
 	...ONION_PROTO,
@@ -204,12 +219,15 @@ const Onion_Legacy = {
 const Onion = {
 	...ONION_PROTO,
 	codec: 0x1BD,
+	toPubkey(v) {
+		return v.subarray(0, 32);
+	},
 	toHash(v) {
-		return cid.Base32.encode(this.toObject(v).pubkey);
+		return cid.Base32.encode(this.toPubkey(v));
 	},
 	toObject(v) {
 		return {
-			pubkey: v.subarray(0, 32),
+			pubkey: this.toPubkey(v),
 			checksum: v.subarray(32, 34),
 			version: v[34]
 		};
@@ -326,35 +344,35 @@ const IPFS = Object.assign(new CIDHash, {
 	codec: 0xE3,
 	name: 'IPFS',
 	scheme: 'ipfs',
-	gateway: ({hash}) => `https://cloudflare-ipfs.com/ipfs/${hash}`,
+	gateway: hash => `https://cloudflare-ipfs.com/ipfs/${hash}`,
 });
 
 const IPNS = Object.assign(new CIDHash, {
 	codec: 0xE5,
 	name: 'IPNS',
 	scheme: 'ipns',
-	gateway: ({hash}) => `https://${hash}.ipfs2.eth.limo`,
+	gateway: hash => `https://${hash}.ipfs2.eth.limo`,
 });
 
 const Swarm = Object.assign(new CIDHash, {
 	codec: 0xE4,
 	name: 'Swarm',
 	scheme: 'bzz',
-	gateway: ({hash}) => `https://${hash}.bzz.link`
+	gateway: hash => `https://${hash}.bzz.link`
 });
 
 const Arweave = Object.assign(new CodedHash, {
 	codec: 0xB29910,
 	name: 'Arweave',
 	scheme: 'ar',
-	gateway: ({hash}) => `https://arweave.net/${hash}`,
+	gateway: hash => `https://arweave.net/${hash}`,
 	coder: cid.Base64URL,
 	validate(v) { 
 		if (v.length != 32) throw new Error('expected 32 bytes');
 	}
 });
 
-const SPECS = [
+const SPECS = Object.freeze([
 	IPFS,
 	IPNS,
 	Swarm,
@@ -363,21 +381,23 @@ const SPECS = [
 	Onion,
 	DataURL,
 	GenericURL
-];
+]);
 const CODEC_MAP = new Map(SPECS.map(x => [x.codec, x]));
 const SCHEME_MAP = new Map(SPECS.filter(x => x.scheme).map(x => [x.scheme, x]));
 
-function encode_contenthash(codec, data) {
-	let len = [];
-	cid.uvarint.write(len, codec);
-	let v = new Uint8Array(len.length + data.length);
-	v.set(len);
-	v.set(data, len.length);
-	return v;
-}
 class ContentHash {
-	static fromParts(spec, data) {
-		return new this(encode_contenthash(spec.codec ?? spec, data));
+	static fromParts(codec, data) {
+		if (!is_number(codec)) {
+			if (!codec.codec) throw error_with('expected codec', {codec});
+			codec = codec.codec;
+		}
+		data = bytes_from_phex(data);
+		let len = [];
+		cid.uvarint.write(len, codec);
+		let v = new Uint8Array(len.length + data.length);
+		v.set(len);
+		v.set(data, len.length);
+		return new this(v);
 	}
 	static fromOnion(hash) {
 		// https://github.com/torproject/torspec/blob/main/rend-spec-v3.txt
@@ -409,16 +429,14 @@ class ContentHash {
 			return this.fromOnion(value);
 		} 
 		// the key didn't hint
-		if (value instanceof ContentHash) {
+		if (value instanceof this) {
 			return value;
-		} else if (typeof value === 'string') {
+		} else if (is_string(value)) {
 			if (maybe_phex(value)) {
 				return this.fromBytes(value);
 			} else {
 				return this.fromURL(value);
 			}
-		// } else {
-		// 	return this.fromEntry(value.type, value.hash);
 		}
 		throw error_with('unknown contenthash', {key, value});
 	}
@@ -443,34 +461,34 @@ class ContentHash {
 	constructor(bytes) {
 		this.bytes = bytes;
 	}
-	get spec() { return this.toParts()[0]; }
-	get data() { return this.toParts()[1]; }
-	toParts() {
-		let {bytes} = this;
-		let [codec, pos] = cid.uvarint.read(bytes);
-		let spec = CODEC_MAP.get(codec);
-		let data = bytes.subarray(pos);
-		return [spec, data];
+	get codec() {
+		return cid.uvarint.read(this.bytes)[0];
 	}
-	toHash() { 
-		let [spec, data] = this.toParts();
-		return spec.toHash(data); 
+	get spec() { 
+		return CODEC_MAP.get(this.codec);
+	}
+	get data() {
+		return this._data.slice();
+	}
+	get _data() {
+		let v = this.bytes;
+		return v.subarray(cid.uvarint.read(v)[1]);
+	}
+	toHash() {
+		return this.spec.toHash(this._data); 
 	}
 	toObject() {
-		let [spec, data] = this.toParts();
-		return spec.toObject(data); 
+		return this.spec.toObject(this._data); 
 	}
-	toEntry() { 
-		let [spec, data] = this.toParts();
-		return spec.toEntry(data);
+	toEntry() {
+		return this.spec.toEntry(this._data);
 	}
 	toURL() { 
-		let [spec, data] = this.toParts();
-		return spec.toURL(data); 
+		return this.spec.toURL(this._data); 
 	}
 	toGatewayURL() {
-		let [spec, data] = this.toParts();
-		return spec.gateway?.({spec, data, hash: spec.toHash(data)}) ?? spec.toURL(data);
+		let {spec, _data: v} = this;
+		return spec.gateway?.(spec.toHash(v), spec, v) ?? spec.toURL(v);
 	}
 	toPhex() {
 		return phex_from_bytes(this.bytes); 
@@ -510,7 +528,7 @@ class Pubkey {
 		try {
 			if (value instanceof Uint8Array) {
 				return new this(value);
-			} else if (typeof value === 'string') {
+			} else if (is_string(value)) {
 				return new this(bytes_from_phex(value));
 			} else if (typeof value === 'object') {
 				return this.fromXY(value.x, value.y);
@@ -521,17 +539,19 @@ class Pubkey {
 		}
 	}
 	constructor(bytes) {
-		if (!bytes) {
-			bytes = new Uint8Array(64);
-		} else if (bytes.length != 64) {
-			throw error_with('expected 64 bytes', {bytes});
+		let v = new Uint8Array(64);
+		if (bytes) {
+			if (bytes.length != 64) {
+				throw error_with('expected 64 bytes', {bytes});
+			}
+			v.set(bytes);
 		}
-		this.bytes = bytes;
+		this.bytes = v;
 	}
 	set x(x) { this.bytes.set(bytes32_from(x), 0); }
 	set y(x) { this.bytes.set(bytes32_from(x), 32); }
-	get x() { return this.bytes.subarray(0, 32); }
-	get y() { return this.bytes.subarray(32); }
+	get x() { return this.bytes.slice(0, 32); }
+	get y() { return this.bytes.slice(32); }
 	get address() { return coins.eth.encode(sha3.keccak_256(this.bytes).subarray(-20)); }
 	toObject() {
 		let {x, y, address} = this;
@@ -539,10 +559,14 @@ class Pubkey {
 	}
 	toJSON() {
 		return {
-			x: phex_from_bytes(this.x),
-			y: phex_from_bytes(this.y)
+			x: drop_zeros(phex_from_bytes(this.x)),
+			y: drop_zeros(phex_from_bytes(this.y))
 		};
 	}
+}
+
+function drop_zeros(s) {
+	return s.replace(/^0x0+/, '0x');
 }
 
 const PREFIX_COIN = '$';
@@ -556,7 +580,7 @@ class Record extends Map {
 		}
 		return self;
 	}
-	put(key, x) {
+	put(key, value) {
 		// json:                  | getter:       | storage:
 		// {"name": "Raffy"}      | text(key)     | {key: string} 
 		// {"$eth": "0x5105...}   | addr(type)    | {${coin.name}: Address}
@@ -565,20 +589,25 @@ class Record extends Map {
 		// {"#name": "raffy.eth"} | name()        | {Record.NAME: string}
 		try {
 			let k = key;
+			let x = value;
 			if (k.startsWith(PREFIX_COIN)) {
-				x = Address.from(k.slice(PREFIX_COIN.length), x);
+				if (x) x = Address.from(k.slice(PREFIX_COIN.length), x);
 				k = x.type;
 			} else if (k === Record.PUBKEY) {
-				x = Pubkey.from(x);
+				if (x) x = Pubkey.from(x);
 			} else if (k === Record.NAME) {
 				// unmodified
 			} else if (k.startsWith(PREFIX_MAGIC)) {
-				x = ContentHash.fromEntry(k.slice(PREFIX_MAGIC.length), x);
+				if (x) x = ContentHash.fromEntry(k.slice(PREFIX_MAGIC.length), x);
 				k = Record.CONTENTHASH;
 			}
-			this.set(k, x);
+			if (x) {
+				this.set(k, x);
+			} else {
+				this.delete(k);
+			}
 		} catch (err) {
-			throw error_with(`Storing "${key}": ${err.message}`, {key}, err);
+			throw error_with(`Storing "${key}": ${err.message}`, {key, value}, err);
 		}
 	}
 	text(key) {
@@ -648,6 +677,22 @@ class Node extends Map {
 		this.parent = parent || null;
 		this.record = null;
 	}
+	get name() {
+		if (!this.parent) return '';
+		let v = [];
+		for (let x = this; x.parent; x = x.parent) v.push(x.label);
+		return v.join('.');
+	}
+	get depth() {
+		let n = 0;
+		for (let x = this.parent; x.parent; x = x.parent) ++n;
+		return n;
+	}
+	get nodes() {
+		let n = 0;
+		this.scan(() => ++n);
+		return n;
+	}
 	// get node "a" from "a.b.c" or null
 	// find("") is identity
 	find(name) {
@@ -655,12 +700,13 @@ class Node extends Map {
 	}
 	// ensures the nodes for "a.b.c" exist and returns "a"
 	create(name) {
-		return split_norm(name).reduceRight((x, s) => x.ensureChild(s), this);
+		return split_norm(name).reduceRight((x, s) => x.child(s), this);
 	}
 	// gets or creates a subnode of this node
-	ensureChild(label) {
+	child(label) {
 		let node = this.get(label);
 		if (!node) {
+			if (!label) throw new Error('empty label');
 			node = new Node(label, this);
 			this.set(label, node);
 		}
@@ -673,8 +719,9 @@ class Node extends Map {
 			this.record = Record.from(record || json);
 			if (record) {
 				for (let [ks, v] of Object.entries(json)) {
+					if (ks === LABEL_SELF) continue; // skip record type
 					ks = ks.trim();
-					if (!ks || ks === LABEL_SELF) continue;
+					if (!ks) throw new Error('expected label');
 					for (let k of ks.split(/\s+/)) {
 						this.create(k).importJSON(v);
 					}
@@ -697,37 +744,27 @@ class Node extends Map {
 		}
 		return json;
 	}
-	*records() {
-		let {record} = this;
-		if (record) yield record;
-		for (let x of this.values()) {
-			yield* x.records();
-		}
-	}
-	*nodes() {
-		yield this;
-		for (let x of this.values()) {
-			yield* x.nodes();
-		}
-	}
-	get name() {
-		if (!this.parent) return this.label;
-		let v = [];
-		for (let node = this; node.parent; node = node.parent) {
-			v.push(node.label);
-		}
-		return v.join('.');
-	}
 	scan(fn, level = 0) {
 		fn(this, level++);
 		for (let x of this.values()) {
 			x.scan(fn, level);
 		}
 	}
+	collect(fn) {
+		let v = [];
+		this.scan((x, n) => {
+			let res = fn(x, n);
+			if (res != null) v.push(res); // allow "" and false
+		});
+		return v;
+	}
+	flat() {
+		return this.collect(x => x);
+	}
 	print() {
 		this.scan((x, n) => {
 			let line = '  '.repeat(n) + x.label;
-			if (x.record) line += '*';          // label* => this node has a record
+			if (x.record) line += '*'; // label* => this node has a record
 			if (x.size) line += ` (${x.size})`; // (#) => this node has subdomains
 			console.log(line);
 		});
@@ -745,4 +782,5 @@ exports.IPNS = IPNS;
 exports.Node = Node;
 exports.Onion = Onion;
 exports.Record = Record;
+exports.SPECS = SPECS;
 exports.Swarm = Swarm;

@@ -1,14 +1,14 @@
 import {getCoderByCoinType, coinNameToTypeMap} from '@ensdomains/address-encoder';
-import {bytes_from_phex, error_with} from './utils.js';
+import {bytes_from_phex, error_with, is_number, is_string} from './utils.js';
 
-const cache = new Map();
-
+const COINS = new Map();
 const TYPE_ETH = 60;
 const MSB = 0x80000000;
 
+// patch around strict evm parsing
 const eth0 = getCoderByCoinType(TYPE_ETH).decode;
 function eth(s) {
-	if (typeof s === 'string') {
+	if (is_string(s)) {
 		let v = bytes_from_phex(s);
 		if (v.length == 20) {
 			let rest = s.slice(2);
@@ -23,35 +23,39 @@ function eth(s) {
 // TODO: should this be BigInt?
 export class Coin {
 	static fromType(type) {
-		let coin = cache.get(type);
+		let coin = COINS.get(type);
 		if (!coin) {
 			let {name, encode, decode} = getCoderByCoinType(type);
 			if (decode === eth0) decode = eth;
-			coin = Object.assign(new Coin, {type, name, encode, decode});
-			cache.set(type, coin);
+			coin = Object.freeze(Object.assign(new Coin, {type, name, encode, decode}));
+			COINS.set(type, coin);
 		}
 		return coin;
 	}
-	static from(query) {
-		if (typeof query === 'number') {
-			return this.fromType(query);
-		} else if (typeof query === 'string') {
-			query = {name: query};
-		}
-		let {type, name, chain} = query;
-		if (name) {
-			type = coinNameToTypeMap[name];
-		} else if (typeof chain === 'number') {
-			if (chain === 1) {
-				type = TYPE_ETH;
-			} else {
-				type = chain + MSB;
-			}
-		}
-		if (typeof type !== 'number') {
-			throw error_with('unable to derive coin type', query);
-		}
+	static fromName(name) {
+		let type = coinNameToTypeMap[name];
+		if (!is_number(type)) throw error_with(`unknown coin: ${name}`, {name});
 		return this.fromType(type);
+	}
+	static fromChain(chain) {
+		return this.fromType(chain === 1 ? TYPE_ETH : chain + MSB)
+	}
+	static from(x) {
+		if (x instanceof this) {
+			return x;
+		} else if (is_number(x)) {
+			return this.fromType(x);
+		} else if (is_string(x)) {
+			return this.fromName(x);
+		}
+		let {type, name, chain} = x;
+		if (type) {
+			return this.fromType(type);
+		} else if (name) {
+			return this.fromName(name);
+		} else {
+			return this.fromChain(chain);
+		}
 	}
 	get chain() {
 		let {type} = this;
@@ -62,4 +66,3 @@ export class Coin {
 		}
 	}
 }
-

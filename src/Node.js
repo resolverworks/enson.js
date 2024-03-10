@@ -13,6 +13,22 @@ export class Node extends Map {
 		this.parent = parent || null;
 		this.record = null;
 	}
+	get name() {
+		if (!this.parent) return '';
+		let v = [];
+		for (let x = this; x.parent; x = x.parent) v.push(x.label);
+		return v.join('.');
+	}
+	get depth() {
+		let n = 0;
+		for (let x = this.parent; x.parent; x = x.parent) ++n;
+		return n;
+	}
+	get nodes() {
+		let n = 0;
+		this.scan(() => ++n);
+		return n;
+	}
 	// get node "a" from "a.b.c" or null
 	// find("") is identity
 	find(name) {
@@ -20,12 +36,13 @@ export class Node extends Map {
 	}
 	// ensures the nodes for "a.b.c" exist and returns "a"
 	create(name) {
-		return split_norm(name).reduceRight((x, s) => x.ensureChild(s), this);
+		return split_norm(name).reduceRight((x, s) => x.child(s), this);
 	}
 	// gets or creates a subnode of this node
-	ensureChild(label) {
+	child(label) {
 		let node = this.get(label);
 		if (!node) {
+			if (!label) throw new Error('empty label');
 			node = new Node(label, this);
 			this.set(label, node);
 		}
@@ -38,8 +55,9 @@ export class Node extends Map {
 			this.record = Record.from(record || json);
 			if (record) {
 				for (let [ks, v] of Object.entries(json)) {
+					if (ks === LABEL_SELF) continue; // skip record type
 					ks = ks.trim();
-					if (!ks || ks === LABEL_SELF) continue;
+					if (!ks) throw new Error('expected label');
 					for (let k of ks.split(/\s+/)) {
 						this.create(k).importJSON(v);
 					}
@@ -62,37 +80,27 @@ export class Node extends Map {
 		}
 		return json;
 	}
-	*records() {
-		let {record} = this;
-		if (record) yield record;
-		for (let x of this.values()) {
-			yield* x.records();
-		}
-	}
-	*nodes() {
-		yield this;
-		for (let x of this.values()) {
-			yield* x.nodes();
-		}
-	}
-	get name() {
-		if (!this.parent) return this.label;
-		let v = [];
-		for (let node = this; node.parent; node = node.parent) {
-			v.push(node.label);
-		}
-		return v.join('.');
-	}
 	scan(fn, level = 0) {
 		fn(this, level++);
 		for (let x of this.values()) {
 			x.scan(fn, level);
 		}
 	}
+	collect(fn) {
+		let v = [];
+		this.scan((x, n) => {
+			let res = fn(x, n);
+			if (res != null) v.push(res); // allow "" and false
+		});
+		return v;
+	}
+	flat() {
+		return this.collect(x => x);
+	}
 	print() {
 		this.scan((x, n) => {
 			let line = '  '.repeat(n) + x.label;
-			if (x.record) line += '*';          // label* => this node has a record
+			if (x.record) line += '*'; // label* => this node has a record
 			if (x.size) line += ` (${x.size})`; // (#) => this node has subdomains
 			console.log(line);
 		});

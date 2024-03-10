@@ -26,3 +26,4 @@ dump(ContentHash.fromEntry('contenthash', 'ar://yBYkngZXGCQgYU-nUCwo5vns2ALUU0LX
 dump(ContentHash.fromEntry('text/html', '<b>yo</b>'));
 dump(ContentHash.fromEntry('ipfs', 'QmZcH4YvBVVRJtdn4RdbaqgspFU8gH6P9vomDpBVpAL3u4'));
 dump(ContentHash.fromURL('ipfs://QmZcH4YvBVVRJtdn4RdbaqgspFU8gH6P9vomDpBVpAL3u4'));
+dump(ContentHash.fromBytes('0xe301017012201687de19f1516b9e560ab8655faa678e3a023ebff43494ac06a36581aafc957e'));

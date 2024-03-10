@@ -1,13 +1,15 @@
 import {Node, Record} from '../src/index.js';
 
-
 let root = Node.root();
 
 let raffy = root.create('raffy.a.b.c.eth');
 raffy.importJSON({
 	name: 'nice chonk',
-	$eth: '0x51050ec063d393217B436747617aD1C2285Aeeee'
+	$eth: '0x51050ec063d393217B436747617aD1C2285Aeeee',
+	[Record.PUBKEY]: {x: 1, y: 2},
 });
+
+console.log(raffy.toJSON());
 
 root.find('eth').importJSON({
 	'.':    { name: 'Ether',  $eth: '0x0000000000000000000000000000000000000000' }, // eth
@@ -15,23 +17,25 @@ root.find('eth').importJSON({
 	darian: { name: 'Darian', $eth: '0x0000000000000000000000000000000000000002' }  // darian.eth
 });
 
-
-console.log([...root.nodes()].map(x => x.name));
-console.log([...root.records()]);
+console.log(root.nodes, root.flat().length);
+console.log(root.collect(x => x.name));
 
 // create reverse nodes
 let rev = root.create('addr.reverse');
-for (let node of root.nodes()) {
+for (let node of root.flat()) {
 	let eth = node.record?.get(60);
 	if (!eth) continue;
-	rev.ensureChild(eth.toString().slice(2)).record = Record.from({
+	rev.child(eth.value.slice(2).toLowerCase()).record = Record.from({
 		[Record.NAME]: node.name
 	});	
 }
 
 // try a reverse
-console.log(root.find('0000000000000000000000000000000000000001.addr.reverse')?.record.name());
+let slobo = root.find('0000000000000000000000000000000000000001.addr.reverse');
+console.log(slobo.record.name());
 // slobo.eth
+console.log(slobo.depth);
+// 2
 
 console.log(JSON.stringify(root.toJSON(), null, '  '));
 /*
@@ -65,7 +69,7 @@ console.log(JSON.stringify(root.toJSON(), null, '  '));
       "0000000000000000000000000000000000000000": {
         "#name": "eth"
       },
-      "51050ec063d393217B436747617aD1C2285Aeeee": {
+      "51050ec063d393217b436747617ad1c2285aeeee": {
         "#name": "raffy.a.b.c.eth"
       },
       "0000000000000000000000000000000000000001": {
@@ -92,7 +96,7 @@ root.print();
   reverse (1)
     addr (4)
       0000000000000000000000000000000000000000*
-      51050ec063d393217B436747617aD1C2285Aeeee*
+      51050ec063d393217b436747617ad1c2285aeeee*
       0000000000000000000000000000000000000001*
       0000000000000000000000000000000000000002*
 */

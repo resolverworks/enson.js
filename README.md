@@ -5,31 +5,25 @@ ENS Object Notation
 
 * see [types](./dist/index.d.ts) / check [examples](./examples/)
 * (6) core classes: [Coin](./src/Coin.js), [Address](./src/Address.js), [ContentHash](./src/Record.js), [Pubkey](./src/Record.js), [Record](./src/Record.js), [Node](./src/Record.js) 
-* compatible with [**resolverworks/ezccip.js**](https://github.com/adraffy/ezccip.js) `getRecord()`
-
+* works with [**ezccip.js**](https://github.com/adraffy/ezccip.js)
 
 ### Coin
 
 ```js
 import {Coin} from '@resolverworks/enson';
 
-// memozied coin format
-let ETH = Coin.fromType(60); 
-let BTC = Coin.from({name: 'btc'}); 
-ETH === Coin.from({name: 'eth'}) 
-ETH === Coin.from({type: 60})
-ETH === Coin.from({chain: 1})
+// memozied coin formats
+Coin.fromName('eth') === Coin.from({name: 'eth'}) 
+Coin.fromType(60)    === Coin.from({type: 60})
+Coin.fromChain(1)    === Coin.from({chain: 1})
 ```
 
 ### Address
 ```js
 import {Address} from '@resolverworks/enson';
 
-let eth = Address('eth', '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045');
-eth.type; // 60
-eth.name; // eth
-eth.bytes; // Uint8Array
-eth.toString(); // 0x...
+Address.from('eth', '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045'); // human readable
+Address.fromParts(0, '0x00142e6414903e4b24d05132352f71b75c165932a381'); // hex encoded btc
 ```
 
 ### ContentHash
@@ -65,7 +59,7 @@ import {Record} from '@resolverworks/enson';
 let vitalik = Record.from({
     name: 'Vitalik',
     $eth: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
-    $btc: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
+    $btc: 'bc1pcm5cz7zqmc23ml65m628vrln0fja6hnhewmncya3x6n6rq7t7rdqhgqlvc',
     avatar: 'eip155:1/erc1155:0xb32979486938aa9694bfc898f35dbed459f44424/10063',
     '#ipfs': 'k2jmtxrxbr58aa3716vvr99qallufj3qae595op83p37jod4exujup32',
     '#pubkey': {x: 1, y: 2},
@@ -110,16 +104,16 @@ root.find('eth').importJSON({
     darian: { name: 'Darian', $eth: '0x0000000000000000000000000000000000000002' }  // darian.eth
 });
 
-[...root.nodes()] // iterator of all nodes
-[...root.records()] // iterator of all records
+root.flat() // list of nodes
 
 // create reverse nodes
 let rev = root.create('addr.reverse');
-for (let node of root.nodes()) {
-	let eth = node.record?.get(60);
-	if (!eth) continue;
-	rev.ensureChild(eth.toString().slice(2)).record = Record.from({
-		[Record.NAME]: node.name
-	});	
-}
+root.scan(node => {
+    let eth = node.record?.get(60);
+    if (eth) {
+        rev.ensureChild(eth.toString().slice(2)).record = Record.from({
+            [Record.NAME]: node.name
+        });	
+    }
+});
 ```

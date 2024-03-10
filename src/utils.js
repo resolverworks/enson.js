@@ -8,7 +8,7 @@ export function utf8_from_bytes(v) {
 
 export function bytes_from_phex(x) {
 	if (x instanceof Uint8Array) {
-		return x;
+		return x; // not a copy
 	} else if (Array.isArray(x)) {
 		return Uint8Array.from(x);
 	} else if (maybe_phex(x)) {
@@ -23,7 +23,7 @@ export function phex_from_bytes(v) {
 export function bytes32_from(x) {
 	if (x instanceof Uint8Array) {
 		if (x.length !== 32) throw error_with('expected 32-bytes', {value: x});
-		return x;
+		return x; // not a copy
 	}
 	return hexToBytes(BigInt(x).toString(16).padStart(64, '0').slice(-64));
 }
@@ -33,7 +33,14 @@ export function split_norm(s) {
 }
 
 export function maybe_phex(s) {
-	return typeof s === 'string' && /^0x/i.test(s);
+	return is_string(s) && /^0x/i.test(s);
+}
+
+export function is_number(x) {
+	return typeof x === 'number';
+}
+export function is_string(x) {
+	return typeof x === 'string';
 }
 
 export function error_with(message, options, cause) {

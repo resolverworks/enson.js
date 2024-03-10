@@ -14,7 +14,7 @@ export class Record extends Map {
 		}
 		return self;
 	}
-	put(key, x) {
+	put(key, value) {
 		// json:                  | getter:       | storage:
 		// {"name": "Raffy"}      | text(key)     | {key: string} 
 		// {"$eth": "0x5105...}   | addr(type)    | {${coin.name}: Address}
@@ -23,20 +23,25 @@ export class Record extends Map {
 		// {"#name": "raffy.eth"} | name()        | {Record.NAME: string}
 		try {
 			let k = key;
+			let x = value;
 			if (k.startsWith(PREFIX_COIN)) {
-				x = Address.from(k.slice(PREFIX_COIN.length), x);
+				if (x) x = Address.from(k.slice(PREFIX_COIN.length), x);
 				k = x.type;
 			} else if (k === Record.PUBKEY) {
-				x = Pubkey.from(x);
+				if (x) x = Pubkey.from(x);
 			} else if (k === Record.NAME) {
 				// unmodified
 			} else if (k.startsWith(PREFIX_MAGIC)) {
-				x = ContentHash.fromEntry(k.slice(PREFIX_MAGIC.length), x);
+				if (x) x = ContentHash.fromEntry(k.slice(PREFIX_MAGIC.length), x);
 				k = Record.CONTENTHASH;
 			}
-			this.set(k, x);
+			if (x) {
+				this.set(k, x);
+			} else {
+				this.delete(k);
+			}
 		} catch (err) {
-			throw error_with(`Storing "${key}": ${err.message}`, {key}, err);
+			throw error_with(`Storing "${key}": ${err.message}`, {key, value}, err);
 		}
 	}
 	text(key) {

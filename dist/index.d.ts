@@ -15,15 +15,13 @@ export class Pubkey {
 	toJSON(): {x: string, y: string};
 }
 
+export type GatewayFn = (hash: string, spec: ContentHashSpec, data: Uint8Array) => string;
 export class ContentHashSpec {
 	readonly codec: number;
 	readonly name: string;
 	readonly scheme?: string;
 	gateway?: GatewayFn;
 }
-
-export type GatewayFn = (params: {hash: string, data: Uint8Array, spec: ContentHashSpec}) => string;
-
 export const Onion: ContentHashSpec | {
 	fromPubkey(pubkey: DataLike, version?: number): Uint8Array;
 };
@@ -35,16 +33,16 @@ export const Swarm: ContentHashSpec;
 export const Arweave: ContentHashSpec;
 
 export class ContentHash {
-	static fromParts(spec: ContentHashSpec | number, data: Uint8Array): ContentHash;
+	static fromParts(codec: number | ContentHashSpec, data: DataLike): ContentHash;
 	static fromOnion(hash: DataLike): ContentHash;
 	static fromEntry(key: string, value: any): ContentHash;
 	static fromBytes(raw: DataLike): ContentHash;
 	static fromURL(url: String | URL): ContentHash;
 	constructor(v: Uint8Array);
-	bytes: Uint8Array;
+	readonly bytes: Uint8Array;
+	get codec(): number;
 	get spec(): ContentHashSpec;
 	get data(): Uint8Array;
-	toParts(): [spec: ContentHashSpec, data: Uint8Array];
 	toHash(): string;
 	toObject(): object;
 	toEntry(): [key: string, value: any];
@@ -54,13 +52,16 @@ export class ContentHash {
 	toJSON(): string;
 }
 
-export type CoinQuery = string | number | {name?: string, type?: number, chain?: number};
+export type CoinQuery = Coin | number | string | {name?: string, type?: number, chain?: number};
 
 export class Coin {
+	static fromType(type: number): Coin;
+	static fromName(name: string): Coin;
+	static fromChain(chain: number): Coin;
 	static from(query: CoinQuery): Coin;
-	readonly type: number;	
+	readonly type: number;
 	readonly name: string;
-	readonly chain?: number;
+	get chain(): number | undefined;
 	encode(s: string): Uint8Array;
 	decode(v: Uint8Array): string;
 }
@@ -68,11 +69,14 @@ export class Coin {
 export class Address {
 	static from(query: CoinQuery, value: string): Address;
 	static fromParts(type: number, raw: DataLike): Address;	
+	readonly coin: Coin;
 	readonly bytes: Uint8Array;
 	get type(): number;
-	get name(): string;	
-	toObject(): {type: number, name: string, value: string};
+	get name(): string;
+	get value(): string;
+	toObject(): {type: number, name: string, value: string, bytes: Uint8Array};
 	toPhex(): string;
+	toJSON(): string;
 }
 
 export type RecordObject = {[key: string]: any};
@@ -84,7 +88,7 @@ export class Record extends Map {
 	toJSON(): RecordObject;
 	toEntries(compact: boolean): [key: string, value: any][];
 
-	put(key: string, value: any): void;
+	put(key: string, value?: any): void;
 
 	static readonly CONTENTHASH: string;
 	static readonly PUBKEY: string;
@@ -99,15 +103,17 @@ export class Node extends Map {
 	readonly parent: Node;
 	record?: Record;
 
+	get name(): string;
+	get depth(): number;
+	get nodes(): number;
+
 	find(name: string): Node | undefined;
 	create(name: string): Node;
-	ensureChild(label: string): Node;
+	child(label: string): Node;
 	importJSON(any: any): void;
 
-	records(): Iterator<Record>;
-	nodes(): Iterator<Node>;
 	scan(fn: (node: Node, level: number) => void, level?: number): void;
-
-	get name(): string;
+	collect<T>(fn: (node: Node, level: number) => T | undefined): T[];
+	flat(): Node[];
 	print(): void;
 }
