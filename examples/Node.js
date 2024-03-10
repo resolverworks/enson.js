@@ -13,7 +13,7 @@ console.log(raffy.toJSON());
 
 root.find('eth').importJSON({
 	'.':    { name: 'Ether',  $eth: '0x0000000000000000000000000000000000000000' }, // eth
-    slobo:  { name: 'Alex',   $eth: '0x0000000000000000000000000000000000000001' }, // slobo.eth
+	slobo:  { name: 'Alex',   $eth: '0x0000000000000000000000000000000000000001' }, // slobo.eth
 	darian: { name: 'Darian', $eth: '0x0000000000000000000000000000000000000002' }  // darian.eth
 });
 
@@ -22,13 +22,14 @@ console.log(root.collect(x => x.name));
 
 // create reverse nodes
 let rev = root.create('addr.reverse');
-for (let node of root.flat()) {
+root.scan(node => {
 	let eth = node.record?.get(60);
-	if (!eth) continue;
-	rev.child(eth.value.slice(2).toLowerCase()).record = Record.from({
-		[Record.NAME]: node.name
-	});	
-}
+	if (eth) {
+		rev.create(eth.toString().slice(2)).record = Record.from({
+			[Record.NAME]: node.name
+		});	
+	}
+});
 
 // try a reverse
 let slobo = root.find('0000000000000000000000000000000000000001.addr.reverse');

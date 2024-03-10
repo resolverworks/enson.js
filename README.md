@@ -111,7 +111,7 @@ let rev = root.create('addr.reverse');
 root.scan(node => {
     let eth = node.record?.get(60);
     if (eth) {
-        rev.ensureChild(eth.toString().slice(2)).record = Record.from({
+        rev.create(eth.toString().slice(2)).record = Record.from({
             [Record.NAME]: node.name
         });	
     }
