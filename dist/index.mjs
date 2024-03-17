@@ -758,10 +758,10 @@ class Record {
 				} else {
 					return this.setText(key, value);
 				}
-			} else if (key instanceof Coin) {
+			} else { //if (key instanceof Coin || is_number(key) || is_bigint(key)) {
 				return this.setAddress(key, value);
 			}
-			throw new Error('unknown key');
+			//throw new Error('unknown key');
 		} catch (err) {
 			if (!silent) throw error_with(`set "${key}": ${err.message}`, {key, value}, err);
 		}
@@ -775,9 +775,9 @@ class Record {
 			}
 		});
 		let {_chash, _pubkey, _name} = this;
-		if (_chash)  m.push([PREFIX_CHASH, fn(_chash), SEL_CHASH]);
+		if (_chash)  m.push([PREFIX_CHASH,  fn(_chash),  SEL_CHASH ]);
 		if (_pubkey) m.push([PREFIX_PUBKEY, fn(_pubkey), SEL_PUBKEY]);
-		if (_name)   m.push([PREFIX_NAME, fn(_name), SEL_NAME]);
+		if (_name)   m.push([PREFIX_NAME,   fn(_name),   SEL_NAME  ]);
 		return m;
 	}
 	[Symbol.iterator]() {
@@ -846,14 +846,18 @@ class Record {
 				}
 				case SEL_ADDR: {
 					let v = read_memory(answer, 0);
-					return this.setAddress(bigUintAt(calldata, 36), v.length ? v : undefined);
+					return this.setAddress(bigUintAt(calldata, 36), v.length && v);
 				}
-				case SEL_CHASH:  return this.setChash(read_memory(answer, 0));
+				case SEL_CHASH: {
+					let v = read_memory(answer, 0);
+					return this.setChash(v.length && v);
+				}
 				case SEL_NAME:   return this.setName(utf8_from_bytes(read_memory(answer, 0)));
-				case SEL_PUBKEY: return this.setPubkey(answer);
+				case SEL_PUBKEY: return this.setPubkey(answer.some(x => x) && answer);
 				case SEL_ADDR0: {
 					if (answer.length != 32) throw new Error('expected 32 bytes');
-					return this.setAddress(60, answer.some(x => x) && v.subarray(-20));
+					let v = answer.subarray(-20);
+					return this.setAddress(60, v.some(x => x) && v);
 				}
 				default: throw new Error('unknown sighash');
 			}

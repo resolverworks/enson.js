@@ -102,7 +102,7 @@ let profile = Profile.from(vitalik);
 //   name: true,
 //   addr0: false
 // }
-let calls = profile.makeCalls('raffy.eth'); // calldata 
+let calls = profile.makeCalls('nick.eth'); // calldata 
 let answers = ...; // do the calls using ethers or whatever 
 let nick = new Record();
 nick.parseCalls(calls, answers);

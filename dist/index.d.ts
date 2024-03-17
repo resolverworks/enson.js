@@ -92,7 +92,7 @@ export class Profile {
 		
 	get size(): number;
 	texts: Set<string>;
-	coins: Set<Coin>;
+	coins: Set<bigint>;
 	chash: boolean;
 	pubkey: boolean;
 	name: boolean;	
@@ -136,7 +136,7 @@ export class Record {
 	pubkey(): Uint8Array | undefined;
 	name(): string | undefined;
 
-	[Symbol.iterator](): Generator<RecordEntry, void, unknown>;	
+	[Symbol.iterator](): IterableIterator<RecordEntry>;
 	toObject(): {[key: string]: any};
 	toEntries(hr?: boolean): RecordEntry[];
 	toJSON(hr?: boolean): {[key: string]: any};
