@@ -901,7 +901,6 @@ class Profile {
 		p.setCoin(['eth', 'btc', 'bnb', 'doge', 'ltc', 'dot', 'sol']);
 		p.chash = true;
 		p.pubkey = true;
-		p.name = true;
 		return p;
 	}
 	static from(x) {
