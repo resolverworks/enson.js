@@ -88,6 +88,7 @@ export class Address {
 }
 
 export class Profile {
+	static ENS(): Profile;
 	static from(x: Record): Profile;
 		
 	get size(): number;

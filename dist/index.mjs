@@ -688,7 +688,9 @@ const PREFIX_CHASH  = PREFIX_MAGIC + 'chash';
 const PREFIX_PUBKEY = PREFIX_MAGIC + 'pubkey';
 const PREFIX_NAME   = PREFIX_MAGIC + 'name';
 
-class Record {
+// TODO: add missing profiles, like ABI()
+
+class Record {	
 	static from(xs, silent) {
 		let r = new this();
 		r.import(xs, silent);
@@ -877,6 +879,31 @@ for (let x of [PREFIX_CHASH, PREFIX_PUBKEY, PREFIX_NAME]) {
 }
 
 class Profile {	
+	static ENS() {
+		// ens standard profile
+		// https://github.com/ensdomains/ens-app-v3/blob/main/src/constants/textRecords.ts
+		// https://github.com/ensdomains/ens-app-v3/blob/main/src/constants/supportedAddresses.ts
+		let p = new Profile();
+		p.setText([
+			'email',
+			'url',
+			'avatar',
+			'description',
+			'notice',
+			'keywords',
+			'com.discord',
+			'com.github',
+			'com.reddit',
+			'com.twitter',
+			'org.telegram',
+			'eth.ens.delegate'
+		]);
+		p.setCoin(['eth', 'btc', 'bnb', 'doge', 'ltc', 'dot', 'sol']);
+		p.chash = true;
+		p.pubkey = true;
+		p.name = true;
+		return p;
+	}
 	static from(x) {
 		let p = new this();
 		p.import(x);
@@ -887,14 +914,14 @@ class Profile {
 	}
 	clear() {
 		this.texts = new Set();
-		this.addrs = new Set();
+		this.coins = new Set();
 		this.chash = false;
 		this.pubkey = false;
 		this.name = false;
 		this.addr0 = false;
 	}
 	get size() {
-		return this.texts.size + this.addrs.size + this.chash + this.pubkey + this.name + this.addr0;
+		return this.texts.size + this.coins.size + this.chash + this.pubkey + this.name + this.addr0;
 	}
 	import(x) {
 		if (x instanceof Record) {
@@ -902,7 +929,7 @@ class Profile {
 				if (is_string(k)) {
 					this.texts.add(k);
 				} else {
-					this.addrs.add(k);
+					this.coins.add(k);
 				}
 			}
 			this.chash  = !!x._chash;
@@ -915,8 +942,17 @@ class Profile {
 			this.pubkey = x.pubkey;
 			this.name   = x.name;
 			this.addr0  = x.addr0;
+		} else if (x && typeof x === 'object') {
+			// https://github.com/ensdomains/ensjs-v3/blob/7e01ad8579c08b453fc64b1972b764b6d884b774/packages/ensjs/src/functions/public/getRecords.ts#L33
+			if (Array.isArray(x.texts)) {
+				this.setText(x.texts);
+			}
+			if (Array.isArray(x.coins)) {
+				this.setText(x.coins);
+			}
+			this.chash = !!x.contentHash;
+			//this.abi = !!x.abi;
 		} else {
-			// TODO json?
 			throw error_with('unknown profile format', {profile: x});
 		}
 	}
@@ -947,9 +983,9 @@ class Profile {
 		} else {
 			let {type} = Coin.from(x);
 			if (on) {
-				this.addrs.add(type);
+				this.coins.add(type);
 			} else {
-				this.addrs.delete(type);
+				this.coins.delete(type);
 			}
 		}
 	}
@@ -962,7 +998,7 @@ class Profile {
 		for (let x of this.texts) {
 			calls.push(make_call_with_bytes(SEL_TEXT, node, utf8ToBytes(x)));
 		}
-		for (let x of this.addrs) {
+		for (let x of this.coins) {
 			calls.push(make_call_with_uint(SEL_ADDR, node, x));
 		}
 		if (this.chash)  calls.push(make_call(SEL_CHASH, node));
