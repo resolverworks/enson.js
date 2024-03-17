@@ -1,5 +1,5 @@
 import {is_string, error_with, try_coerce_bytes} from './utils.js';
-import {Coin, ETH, UnknownCoin} from './Coin.js';
+import {Coin, ETH} from './Coin.js';
 import {bytesToHex} from '@noble/hashes/utils';
 
 export class Address {

@@ -43,6 +43,12 @@ export class Coin {
 			return this.fromChain(chain);
 		}
 	}
+	static type(x) {
+		if (is_bigint(x)) return x;
+		if (is_number(x)) return BigInt(x);
+		if (x instanceof Coin) return x.type;
+		return Coin.from(x).type;
+	}
 	static fromType(type) {
 		type = BigInt(type);
 		if (type < 0) throw error_with(`invalid coin type: ${type}`, {type});

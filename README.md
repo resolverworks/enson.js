@@ -24,14 +24,14 @@ Coin.fromChain(1)    === Coin.from({chain: 1})
 import {Address} from '@resolverworks/enson';
 
 Address.from('eth', '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045'); // human readable
-Address.fromParts(0, '0x00142e6414903e4b24d05132352f71b75c165932a381'); // hex encoded btc
+Address.from(0, '0x00142e6414903e4b24d05132352f71b75c165932a381'); // hex encoded btc
 ```
 
-### ContentHash
+### Chash
 ```js
-import {ContentHash} from '@resolverworks/enson';
+import {Chash} from '@resolverworks/enson';
 
-let ipfs = ContentHash.fromBytes('0xe301017012201687de19f1516b9e560ab8655faa678e3a023ebff43494ac06a36581aafc957e');
+let ipfs = Chash.from('0xe301017012201687de19f1516b9e560ab8655faa678e3a023ebff43494ac06a36581aafc957e');
 ipfs.bytes; // Uint8Array
 ipfs.spec; // {codec: 0xE3, name: 'IPFS'}
 ipfs.toHash(); // "k2jmtxrxbr58aa3716vvr99qallufj3qae595op83p37jod4exujup32"
@@ -43,7 +43,7 @@ let onion = ContentHash.fromOnion('2gzyxa5ihm7nsggfxnu52rck2vv4rvmdlkiu3zzui5du4
 onion.toObject(); // {pubkey: Uint8Array(32), checksum: Uint8Array(2), version: 3}
 onion.toURL(); // "http://2gzyxa5ihm7nsggfxnu52rck2vv4rvmdlkiu3zzui5du4xyclenq.onion"
 
-let json = ContentHash.fromEntry('json', {nice: 'chonk'});
+let json = ContentHash.from({nice: 'chonk'}, 'json'); // hint
 json.toObject(); // {json: {nice: "chonk"}}
 json.toURL(); // "data:application/json;base64,eyJuaWNlIjoiY2hvbmsifQ=="
 

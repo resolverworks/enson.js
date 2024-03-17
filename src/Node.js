@@ -52,23 +52,23 @@ export class Node extends Map {
 		}
 		return node;
 	}
-	importJSON(json) {
+	import(obj) {
 		try {
-			if (typeof json !== 'object' || Array.isArray(json)) throw new Error('expected object');
-			let record = json[LABEL_SELF];
-			this.record = Record.from(record || json);
+			if (typeof obj !== 'object' || Array.isArray(obj)) throw new Error('expected object');
+			let record = obj[LABEL_SELF];
+			this.record = Record.from(record || obj);
 			if (record) {
-				for (let [ks, v] of Object.entries(json)) {
+				for (let [ks, v] of Object.entries(obj)) {
 					if (ks === LABEL_SELF) continue; // skip record type
 					ks = ks.trim();
 					if (!ks) throw new Error('expected label');
 					for (let k of ks.split(/\s+/)) {
-						this.create(k).importJSON(v);
+						this.create(k).import(v);
 					}
 				}
 			}
 		} catch (err) {
-			throw error_with(`Importing "${this.name}": ${err.message}`, {json}, err);
+			throw error_with(`Importing "${this.name}": ${err.message}`, {json: obj}, err);
 		}
 	}
 	toJSON() {

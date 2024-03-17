@@ -1,10 +1,9 @@
 import {error_with, array_equals, utf8_from_bytes, is_string, is_samecase_phex, bytes_from, try_coerce_bytes} from './utils.js';
 import {CID, uvarint, Base64URL, Base64, Base32} from '@adraffy/cid';
 import {keccak_256} from '@noble/hashes/sha3';
-import {bytesToHex, utf8ToBytes} from '@noble/hashes/utils';
+import {bytesToHex, utf8ToBytes, toBytes} from '@noble/hashes/utils';
 
 const SCHEME_SEPARATOR = '://';
-const KEY_CONTENTHASH = 'contenthash';
 const KEY_ONION = 'onion';
 const SHORT_DATAURL_KEYS = [
 	{
@@ -69,7 +68,7 @@ export const Onion = {
 		let pubkey = bytes_from(x, false);
 		if (pubkey.length !== 32) throw error_with(`expected 32-byte pubkey`, {pubkey});
 		let v = new Uint8Array(48); // 15 + 32 + 1
-		v.set(toBytes(ONION_SUFFIX + ' checksum'));
+		v.set(utf8ToBytes(ONION_SUFFIX + ' checksum'));
 		v.set(pubkey, 15);
 		v.set(47, version);
 		let bytes = new Uint8Array(35);
@@ -85,7 +84,7 @@ export const GenericURL = {
 	codec: 0x12346,
 	name: 'URL',
 	toEntry(v) {
-		return [KEY_CONTENTHASH, this.toURL(v)];
+		return ['', this.toURL(v)];
 	},
 	toHash(v) {
 		return this.toURL(v);
@@ -135,15 +134,17 @@ export const DataURL = {
 		if (short) {
 			return [short.key, short.decode(data)];
 		}
-		return [KEY_CONTENTHASH, url_from_mime_data(mime, data)];
+		return ['', url_from_mime_data(mime, data)];
 	},
 	toObject(v) {
 		let [mime, data] = decode_mime_data(v);
+		let obj = {mime, data};
 		let short = SHORT_DATAURL_KEYS.find(x => x.mime === mime);
 		if (short) {
-			return {[short.key]: short.decode(data)};
+			obj.abbr = short.key;
+			obj.value = short.decode(data);
 		}
-		return {mime, data};
+		return obj;
 	},
 	toURL(v) {
 		let [mime, data] = decode_mime_data(v);
@@ -161,7 +162,13 @@ class SchemeHash {
 class CIDHash extends SchemeHash {
 	parseHash(s) { return CID.from(s).bytes; }
 	toHash(v)    { return CID.from(v).toString(); }
-	toObject(v)  { return CID.from(v); }
+	toObject(v)  { 
+		let {version, codec, hash, base} = CID.from(v);
+		let cid = {version, codec};
+		if (base) cid.base = base;
+		cid.hash = {...hash};
+		return {cid};
+	}
 }
 class CodedHash extends SchemeHash {
 	parseHash(hash) {
@@ -313,7 +320,11 @@ export class Chash {
 		return this.spec.toHash(this._data); 
 	}
 	toObject() {
-		return this.spec.toObject(this._data); 
+		let {spec: {codec, name}, _data: v} = this;
+		return {
+			protocol: {codec, name},
+			...this.spec.toObject(v)
+		};
 	}
 	toEntry() {
 		return this.spec.toEntry(this._data);
@@ -336,7 +347,7 @@ export class Chash {
 // simple parsing since URL varies between browsers
 function split_url(url) {
 	let pos = url.indexOf(SCHEME_SEPARATOR);
-	if (!pos) throw error_with('expected scheme separator', {url});
+	if (pos === -1) throw error_with('expected scheme separator', {url});
 	let scheme = url.slice(0, pos);	
 	let authority = url.slice(pos + SCHEME_SEPARATOR.length);
 	let rest = '';

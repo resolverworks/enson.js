@@ -1,5 +1,5 @@
 import {is_samecase_phex, bytes32_from, error_with} from './utils.js';
-import {eth} from '@ensdomains/address-encoder/coins';
+import {ETH} from './Coin.js';
 import {keccak_256} from '@noble/hashes/sha3';
 import {hexToBytes, bytesToHex} from '@noble/hashes/utils';
 
@@ -38,24 +38,30 @@ export class Pubkey {
 			this.bytes = new Uint8Array(64);
 		}
 	}
-	get empty() { return this.bytes.every(x => x == 0); }
-	set x(x) { this.bytes.set(bytes32_from(x), 0); }
+	get isNull() { return this.bytes.every(x => x == 0); }
+	set x(x) { this.bytes.set(bytes32_from(x)); }
 	set y(x) { this.bytes.set(bytes32_from(x), 32); }
 	get x() { return this.bytes.slice(0, 32); }
 	get y() { return this.bytes.slice(32); }
-	get address() { return eth.encode(keccak_256(this.bytes).subarray(-20)); }
+	get address() { 
+		return ETH.format(keccak_256(this.bytes).subarray(-20)); // should this be Address()? 
+	}
 	toObject() {
 		let {x, y, address} = this;
 		return {x, y, address};
 	}
+	toPhex() {
+		return '0x' + bytesToHex(this.bytes);
+	}
 	toJSON() {
+		let v = this.bytes;
 		return {
-			x: drop_zeros(bytesToHex(this.x)),
-			y: drop_zeros(bytesToHex(this.y))
+			x: short_phex(v.subarray(0, 32)), // this needed?
+			y: short_phex(v.subarray(32))
 		};
 	}
 }
 
-function drop_zeros(s) {
-	return s.replace(/^0*/, '0x');
+function short_phex(v) {
+	return bytesToHex(v).replace(/^0+(?!$)/, '0x');
 }

@@ -1,17 +1,18 @@
-import {Node, Record} from '../src/index.js';
+import {Node, Record} from '../../src/index.js';
 
 let root = Node.root();
 
 let raffy = root.create('raffy.a.b.c.eth');
-raffy.importJSON({
+raffy.import({
 	name: 'nice chonk',
 	$eth: '0x51050ec063d393217B436747617aD1C2285Aeeee',
+	'#json': [1, {x: 2}],
 	[Record.PUBKEY]: {x: 1, y: 2},
 });
 
 console.log(raffy.toJSON());
 
-root.find('eth').importJSON({
+root.find('eth').import({
 	'.':    { name: 'Ether',  $eth: '0x0000000000000000000000000000000000000000' }, // eth
 	slobo:  { name: 'Alex',   $eth: '0x0000000000000000000000000000000000000001' }, // slobo.eth
 	darian: { name: 'Darian', $eth: '0x0000000000000000000000000000000000000002' }  // darian.eth
@@ -23,9 +24,9 @@ console.log(root.collect(x => x.name));
 // create reverse nodes
 let rev = root.create('addr.reverse');
 root.scan(node => {
-	let eth = node.record?.get(60);
+	let eth = node.record?.getAddress(60);
 	if (eth) {
-		rev.create(eth.toString().slice(2)).record = Record.from({
+		rev.create(eth.value.slice(2)).record = Record.from({
 			[Record.NAME]: node.name
 		});	
 	}
@@ -51,7 +52,11 @@ console.log(JSON.stringify(root.toJSON(), null, '  '));
         "a": {
           "raffy": {
             "name": "nice chonk",
-            "$eth": "0x51050ec063d393217B436747617aD1C2285Aeeee"
+            "$eth": "0x51050ec063d393217B436747617aD1C2285Aeeee",
+            "#pubkey": {
+              "x": "0x1",
+              "y": "0x2"
+            }
           }
         }
       }
@@ -70,7 +75,7 @@ console.log(JSON.stringify(root.toJSON(), null, '  '));
       "0000000000000000000000000000000000000000": {
         "#name": "eth"
       },
-      "51050ec063d393217b436747617ad1c2285aeeee": {
+      "51050ec063d393217B436747617aD1C2285Aeeee": {
         "#name": "raffy.a.b.c.eth"
       },
       "0000000000000000000000000000000000000001": {
@@ -97,7 +102,7 @@ root.print();
   reverse (1)
     addr (4)
       0000000000000000000000000000000000000000*
-      51050ec063d393217b436747617ad1c2285aeeee*
+      51050ec063d393217B436747617aD1C2285Aeeee*
       0000000000000000000000000000000000000001*
       0000000000000000000000000000000000000002*
 */
