@@ -1,7 +1,11 @@
-import {split_norm, error_with} from './utils.js';
+import {error_with} from './utils.js';
 import {Record} from './Record.js';
 
 const LABEL_SELF = '.';
+
+function split(s) {
+	return s ? s.split('.') : [];
+}
 
 export class Node extends Map {
 	static root(name) {
@@ -10,7 +14,7 @@ export class Node extends Map {
 	constructor(label, parent) {
 		super();
 		this.label = label;
-		this.parent = parent || null;
+		this.parent = parent || undefined;
 		this.record = null;
 	}
 	get name() {
@@ -21,7 +25,7 @@ export class Node extends Map {
 	}
 	get depth() {
 		let n = 0;
-		for (let x = this.parent; x.parent; x = x.parent) ++n;
+		for (let x = this; x.parent; x = x.parent) ++n;
 		return n;
 	}
 	get nodes() {
@@ -32,11 +36,11 @@ export class Node extends Map {
 	// get node "a" from "a.b.c" or null
 	// find("") is identity
 	find(name) {
-		return split_norm(name).reduceRight((x, s) => x?.get(s), this);
+		return split(name).reduceRight((x, s) => x?.get(s), this);
 	}
 	// ensures the nodes for "a.b.c" exist and returns "a"
 	create(name) {
-		return split_norm(name).reduceRight((x, s) => x.child(s), this);
+		return split(name).reduceRight((x, s) => x.child(s), this);
 	}
 	// gets or creates a subnode of this node
 	child(label) {

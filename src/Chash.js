@@ -1,11 +1,7 @@
-import {
-	error_with, array_equals, maybe_phex,
-	phex_from_bytes, bytes_from_phex, 
-	utf8_from_bytes, bytes_from_utf8, 
-	is_number, is_string
-} from './utils.js';
+import {error_with, array_equals, utf8_from_bytes, is_string, is_samecase_phex, bytes_from, try_coerce_bytes} from './utils.js';
 import {CID, uvarint, Base64URL, Base64, Base32} from '@adraffy/cid';
 import {keccak_256} from '@noble/hashes/sha3';
+import {bytesToHex, utf8ToBytes} from '@noble/hashes/utils';
 
 const SCHEME_SEPARATOR = '://';
 const KEY_CONTENTHASH = 'contenthash';
@@ -15,19 +11,19 @@ const SHORT_DATAURL_KEYS = [
 		mime: 'text/plain',
 		key: 'text', 
 		decode: utf8_from_bytes,
-		encode: bytes_from_utf8
+		encode: utf8ToBytes
 	},
 	{
 		mime: 'text/html',
 		key: 'html', 
 		decode: utf8_from_bytes,
-		encode: bytes_from_utf8
+		encode: utf8ToBytes
 	},
 	{
 		mime: 'application/json',
 		key: 'json',
 		decode: v => JSON.parse(utf8_from_bytes(v)),
-		encode: x => bytes_from_utf8(JSON.stringify(x))
+		encode: x => utf8ToBytes(JSON.stringify(x))
 	}
 ];
 
@@ -70,10 +66,10 @@ export const Onion = {
 		};
 	},
 	fromPubkey(x, version = 3) {
-		let pubkey = bytes_from_phex(x);
+		let pubkey = bytes_from(x, false);
 		if (pubkey.length !== 32) throw error_with(`expected 32-byte pubkey`, {pubkey});
 		let v = new Uint8Array(48); // 15 + 32 + 1
-		v.set(bytes_from_utf8(ONION_SUFFIX + ' checksum'));
+		v.set(toBytes(ONION_SUFFIX + ' checksum'));
 		v.set(pubkey, 15);
 		v.set(47, version);
 		let bytes = new Uint8Array(35);
@@ -108,7 +104,7 @@ export const GenericURL = {
 };
 
 function encode_mime_data(mime, data) {
-	mime = bytes_from_utf8(mime);
+	mime = toBytes(mime);
 	let len = [];
 	let pos = uvarint.write(len, mime.length);
 	let v = new Uint8Array(pos + mime.length + data.length);
@@ -168,10 +164,14 @@ class CIDHash extends SchemeHash {
 	toObject(v)  { return CID.from(v); }
 }
 class CodedHash extends SchemeHash {
-	parseHash(s) {
-		let v = this.coder.decode(s);
-		this.validate(v);
-		return v;
+	parseHash(hash) {
+		try {
+			let v = this.coder.decode(hash);
+			this.validate(v);
+			return v;
+		} catch (err) {
+			throw error_with('invalid hash', {hash}, err);
+		}
 	}
 	toHash(v)   { return this.coder.encode(v); }
 	toObject(v) { return {hash: this.toHash(v)}; }
@@ -222,13 +222,38 @@ export const SPECS = Object.freeze([
 const CODEC_MAP = new Map(SPECS.map(x => [x.codec, x]));
 const SCHEME_MAP = new Map(SPECS.filter(x => x.scheme).map(x => [x.scheme, x]));
 
-export class ContentHash {
+export class Chash {
+	static from(x, hint) {
+		if (hint) {
+			let spec = SCHEME_MAP.get(hint);
+			if (spec) {
+				return this.fromParts(spec, spec.parseHash(x));
+			}
+			let short = SHORT_DATAURL_KEYS.find(x => x.key === hint);
+			if (short) {
+				return this.fromParts(DataURL, encode_mime_data(short.mime, short.encode(x)));
+			}
+			if (hint.includes('/')) {
+				return this.fromParts(DataURL, encode_mime_data(hint, toBytes(x)));
+			}
+			if (hint === KEY_ONION) {
+				return this.fromOnion(x);
+			} 
+		}
+		let v = try_coerce_bytes(x);
+		if (v !== x) {
+			return this.fromBytes(v);
+		} else if (is_string(x)) {
+			return this.fromURL(x);
+		}
+		throw error_with('unknown contenthash', {hint, value: x});
+	}
 	static fromParts(codec, data) {
-		if (!is_number(codec)) {
-			if (!codec.codec) throw error_with('expected codec', {codec});
+		if (!Number.isInteger(codec)) {
+			if (!codec?.codec) throw error_with('expected codec', {codec});
 			codec = codec.codec;
 		}
-		data = bytes_from_phex(data);
+		data = bytes_from(data, true);
 		let len = [];
 		uvarint.write(len, codec);
 		let v = new Uint8Array(len.length + data.length);
@@ -250,42 +275,15 @@ export class ContentHash {
 		}
 		throw error_with('invalid hash', {hash, data});
 	}
-	static fromEntry(key, value) {
-		let spec = SCHEME_MAP.get(key);
-		if (spec) {
-			return this.fromParts(spec, spec.parseHash(value));
-		}
-		let short = SHORT_DATAURL_KEYS.find(x => x.key === key);
-		if (short) {
-			return this.fromParts(DataURL, encode_mime_data(short.mime, short.encode(value)));
-		}
-		if (key.includes('/')) {
-			return this.fromParts(DataURL, encode_mime_data(key, bytes_from_utf8(value)));
-		}
-		if (key === KEY_ONION) {
-			return this.fromOnion(value);
-		} 
-		// the key didn't hint
-		if (value instanceof this) {
-			return value;
-		} else if (is_string(value)) {
-			if (maybe_phex(value)) {
-				return this.fromBytes(value);
-			} else {
-				return this.fromURL(value);
-			}
-		}
-		throw error_with('unknown contenthash', {key, value});
-	}
 	static fromBytes(x) {
-		let bytes = bytes_from_phex(x);
+		let bytes = bytes_from(x, false);
 		let [codec, pos] = uvarint.read(bytes);
 		let spec = SPECS.find(x => x.codec === codec);
-		if (!spec) throw error_with(`unknown contenthash codec: ${codec}`, {codec, bytes});
+		if (!spec) throw error_with('unknown contenthash codec', {codec, bytes});
 		return this.fromURL(spec.toURL(bytes.subarray(pos)));
 	}
 	static fromURL(url) {
-		let {scheme, authority} = split_url(url);
+		let {scheme, authority} = split_url(url.toString());
 		let spec = SCHEME_MAP.get(scheme);
 		if (spec) {
 			return this.fromParts(spec, spec.parseHash(authority));
@@ -293,7 +291,7 @@ export class ContentHash {
 		if (scheme === 'http' && authority.endsWith(ONION_SUFFIX)) {
 			return this.fromOnion(authority.slice(0, -ONION_SUFFIX.length));
 		}
-		return this.fromParts(GenericURL, bytes_from_utf8(url));
+		return this.fromParts(GenericURL, utf8ToBytes(url));
 	}
 	constructor(bytes) {
 		this.bytes = bytes;
@@ -328,7 +326,7 @@ export class ContentHash {
 		return spec.gateway?.(spec.toHash(v), spec, v) ?? spec.toURL(v);
 	}
 	toPhex() {
-		return phex_from_bytes(this.bytes); 
+		return '0x' + bytesToHex(this.bytes); 
 	}
 	toJSON() { 
 		return this.toURL(); 
@@ -337,9 +335,8 @@ export class ContentHash {
 
 // simple parsing since URL varies between browsers
 function split_url(url) {
-	url = url.toString();
 	let pos = url.indexOf(SCHEME_SEPARATOR);
-	if (!pos) throw error_with(`expected scheme separator`, {url});
+	if (!pos) throw error_with('expected scheme separator', {url});
 	let scheme = url.slice(0, pos);	
 	let authority = url.slice(pos + SCHEME_SEPARATOR.length);
 	let rest = '';

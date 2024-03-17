@@ -4,7 +4,7 @@
 
  `npm i @resolverworks/enson`
 
-* see [types](./dist/index.d.ts) / check [examples](./examples/) / uses [**ethers**](https://github.com/ethers-io/ethers.js) + [ensdomains/**address-encoder**](https://github.com/ensdomains/address-encoder/)
+* see [types](./dist/index.d.ts) / check [examples](./examples/) / uses [ensdomains/**address-encoder**](https://github.com/ensdomains/address-encoder/)
 * (6) core classes: [Coin](./src/Coin.js),  [Address](./src/Address.js), [ContentHash](./src/Record.js), [Pubkey](./src/Record.js), [Record](./src/Record.js), [Node](./src/Record.js) 
 * works with [resolverworks/**ezccip.js**](https://github.com/adraffy/ezccip.js)
 

@@ -2,51 +2,9 @@
 
 var addressEncoder = require('@ensdomains/address-encoder');
 var utils = require('@noble/hashes/utils');
-var ensNormalize = require('@adraffy/ens-normalize');
 var cid = require('@adraffy/cid');
 var sha3 = require('@noble/hashes/sha3');
 var coins = require('@ensdomains/address-encoder/coins');
-
-function utf8_from_bytes(v) {
-	return new TextDecoder().decode(v);
-}
-
-function bytes_from_phex(x) {
-	if (x instanceof Uint8Array) {
-		return x; // not a copy
-	} else if (Array.isArray(x)) {
-		return Uint8Array.from(x);
-	} else if (maybe_phex(x)) {
-		return utils.hexToBytes(x.slice(2));
-	}
-	throw error_with('expected 0x-string', {value: x});
-}
-function phex_from_bytes(v) {
-	return '0x' + utils.bytesToHex(v);
-}
-
-function bytes32_from(x) {
-	if (x instanceof Uint8Array) {
-		if (x.length !== 32) throw error_with('expected 32-bytes', {value: x});
-		return x; // not a copy
-	}
-	return utils.hexToBytes(BigInt(x).toString(16).padStart(64, '0').slice(-64));
-}
-
-function split_norm(s) {
-	return s ? ensNormalize.ens_normalize(s).split('.') : [];
-}
-
-function maybe_phex(s) {
-	return is_string(s) && /^0x/i.test(s);
-}
-
-function is_number(x) {
-	return typeof x === 'number';
-}
-function is_string(x) {
-	return typeof x === 'string';
-}
 
 function error_with(message, options, cause) {
 	let error;
@@ -59,6 +17,58 @@ function error_with(message, options, cause) {
 	return Object.assign(error, options);
 }
 
+function is_number(x) {
+	return typeof x === 'number';
+}
+function is_string(x) {
+	return typeof x === 'string';
+}
+function is_bigint(x) {
+	return typeof x === 'bigint';
+}
+
+function is_samecase_phex(s) {
+	return is_string(s) && /^0x([0-9A-F]+|[0-9a-f]+)/i.test(s);
+}
+
+function bytes_from(x, copy = true) {
+	if (x instanceof Uint8Array) {
+		return copy ? x.slice() : x;
+	}
+	let v = try_coerce_bytes(x);
+	if (v !== x) return v;
+	throw error_with('expected bytes-like', {value: x});
+}
+
+// always !== if successful
+function try_coerce_bytes(x) {
+	if (x instanceof Uint8Array) {
+		return x.slice();
+	} else if (is_samecase_phex(x)) {
+		return utils.hexToBytes(x.slice(2));
+	} else if (Array.isArray(x)) {
+		return Uint8Array.from(x);
+	} else {
+		return x;
+	} 
+}
+
+function utf8_from_bytes(v) {
+	return new TextDecoder().decode(v);
+}
+
+function bytes32_from(x) {
+	if (x instanceof Uint8Array) {
+		if (x.length !== 32) throw error_with('expected 32-bytes', {value: x});
+		return x.slice();
+	}
+	return utils.hexToBytes(BigInt(x).toString(16).padStart(64, '0').slice(-64));
+}
+
+function bigUintAt(v, i) {
+	return BigInt(utils.bytesToHex(v.subarray(i, i + 32)));
+}
+
 function array_equals(a, b) {
 	if (a === b) return true;
 	let n = a.length;
@@ -68,99 +78,168 @@ function array_equals(a, b) {
 }
 
 const COINS = new Map();
-const TYPE_ETH = 60;
-const MSB = 0x80000000;
+const TYPE_ETH = 60n;
+const MSB = 0x80000000n;
+const PREFIX_CHAIN = 'chain:';
+const PREFIX_UNKNOWN = '#';
 
-// patch around strict evm parsing
-const eth0 = addressEncoder.getCoderByCoinType(TYPE_ETH).decode;
-function eth(s) {
-	if (is_string(s)) {
-		let v = bytes_from_phex(s);
-		if (v.length == 20) {
-			let rest = s.slice(2);
-			if (rest === rest.toLowerCase() || rest === rest.toUpperCase()) {
-				return v;
-			}
-		}
+function init() {
+	if (COINS.init) return;
+	COINS.init = true;
+	for (let x of Object.values(addressEncoder.coinNameToTypeMap)) {
+		Coin.fromType(x);
 	}
-	return eth0(s);
+}
+
+// patch around strict parsing
+const {encode: eth_encode, decode: eth_decode_checksum} = addressEncoder.getCoderByCoinType(60);
+function eth_decode(s) {
+	return is_samecase_phex(s) && s.length == 42 ? utils.hexToBytes(s.slice(2)) : eth_decode_checksum(s);
 }
 
 // TODO: should this be BigInt?
 class Coin {
-	static fromType(type) {
-		let coin = COINS.get(type);
-		if (!coin) {
-			let {name, encode, decode} = addressEncoder.getCoderByCoinType(type);
-			if (decode === eth0) decode = eth;
-			coin = Object.freeze(Object.assign(new Coin, {type, name, encode, decode}));
-			COINS.set(type, coin);
-		}
-		return coin;
-	}
-	static fromName(name) {
-		let type = addressEncoder.coinNameToTypeMap[name];
-		if (!is_number(type)) throw error_with(`unknown coin: ${name}`, {name});
-		return this.fromType(type);
-	}
-	static fromChain(chain) {
-		return this.fromType(chain === 1 ? TYPE_ETH : chain + MSB)
-	}
+	static get count() { init(); return COINS.size; }
+	static [Symbol.iterator]() { init(); return COINS.values(); }
 	static from(x) {
 		if (x instanceof this) {
 			return x;
-		} else if (is_number(x)) {
-			return this.fromType(x);
 		} else if (is_string(x)) {
 			return this.fromName(x);
+		} else if (is_number(x) || is_bigint(x)) {
+			return this.fromType(x);
 		}
 		let {type, name, chain} = x;
-		if (type) {
+		if (type !== undefined) {
 			return this.fromType(type);
-		} else if (name) {
+		} else if (name !== undefined) {
 			return this.fromName(name);
 		} else {
 			return this.fromChain(chain);
 		}
+	}
+	static fromType(type) {
+		type = BigInt(type);
+		if (type < 0) throw error_with(`invalid coin type: ${type}`, {type});
+		let coin = COINS.get(type);
+		if (!coin) {
+			let coder;
+			try {
+				if (type <= Number.MAX_SAFE_INTEGER) {
+					coder = addressEncoder.getCoderByCoinType(Number(type));
+				}
+			} catch (err) {
+			}
+			if (coder) {
+				let {encode, decode} = coder;
+				if (decode === eth_decode_checksum) decode = eth_decode; // patch
+				let names = addressEncoder.coinTypeToNameMap[type];
+				if (names) {
+					coin = new Coin(type);
+					Object.defineProperties(coin, {
+						name: {value: names[0], enumerable: true},
+						title: {value: names[1], enumerable: true},
+						parse: {value: decode},
+						format: {value: encode},
+					});
+					COINS.set(type, coin); // memoize
+				} else {
+					coin = new UnnamedEVMCoin(type);
+				}
+			} else {
+				coin = new UnknownCoin(type);
+			}
+			Object.freeze(coin);
+		}
+		return coin;
+	}
+	static fromName(name) {
+		let type;
+		if (name.startsWith(PREFIX_CHAIN)) {
+			type = BigInt(name.slice(PREFIX_CHAIN.length)) + MSB;
+		} else if (name.startsWith(PREFIX_UNKNOWN)) {
+			type = BigInt(name.slice(PREFIX_UNKNOWN.length));
+		} else {
+			type = addressEncoder.coinNameToTypeMap[name];
+			if (!is_number(type)) throw error_with(`unknown coin: ${name}`, {name});
+		}
+		return this.fromType(type);
+	}
+	static fromChain(chain) {
+		return this.fromType(chain == 1 ? TYPE_ETH : BigInt(chain) + MSB)
+	}
+	constructor(type) {
+		this.type = type;
 	}
 	get chain() {
 		let {type} = this;
 		if (type === TYPE_ETH) {
 			return 1;
 		} else if (type & MSB) {
-			return type & (MSB-1);
+			return Number(type & (MSB-1n));
 		}
+	}
+	toObject() {
+		let {type, name, title, chain} = this;
+		return {type, name, title, chain};
 	}
 }
 
-class Address {
-	static from(x, s) {
-		let coin = Coin.from(x);
-		return new this(coin, coin.decode(s));
+class UnnamedCoin extends Coin {
+	get isUnnamed() { return true; }
+}
+
+class UnnamedEVMCoin extends UnnamedCoin {
+	get name()  { return PREFIX_CHAIN + this.chain; }
+	get title() { return 'Unknown Chain'; }
+	parse(s)    { return eth_decode(s); }
+	format(v)   { return eth_encode(v); }
+}
+
+class UnknownCoin extends UnnamedCoin {
+	get name()  { return PREFIX_UNKNOWN + this.type; }
+	get title() { return 'Unknown Coin'; }
+	parse(s)    { throw error_with('unknown parser', {coin: this, value: s}); }
+	format(v)   { return `[0x${utils.bytesToHex(v)}]`; }
+	toObject() {
+		let {type, title} = this;
+		return {type, title};
 	}
-	static fromParts(type, x) {
-		let coin = Coin.fromType(type);
-		let v = bytes_from_phex(x);
-		coin.encode(v); // validate
-		if (v === x) v = v.slice();
-		return new this(coin, v);
+}
+
+const ETH = Coin.fromType(TYPE_ETH);
+
+class Address {
+ 	static from(coin, value) {
+		if (value === undefined) { // eth shorthand
+			value = coin;
+			coin = ETH;
+		} else {
+			coin = Coin.from(coin);
+		}
+		let v = try_coerce_bytes(value);
+		if (v !== value) {
+			coin.format(v); // validate
+			return new this(coin, v);
+		} else if (is_string(value)) {
+			return new this(coin, coin.parse(value));
+		}
+		throw new error_with('unknown address format', {coin, value});
 	}
 	constructor(coin, bytes) {
 		this.coin = coin;
 		this.bytes = bytes;
 	}
-	get type() { return this.coin.type; }
-	get name() { return this.coin.name; }
 	get value() { 
 		let {coin, bytes} = this;
-		return coin.encode(bytes);
+		return coin.format(bytes);
 	}
 	toObject() {
-		let {type, name, value, bytes} = this;
-		return {type, name, value, bytes};
+		let {coin, bytes, value} = this;
+		return {coin: coin.toObject(), value, bytes};
 	}
 	toPhex() {
-		return phex_from_bytes(this.bytes);
+		return '0x' + utils.bytesToHex(this.bytes);
 	}
 	toString() {
 		return this.value;
@@ -178,19 +257,19 @@ const SHORT_DATAURL_KEYS = [
 		mime: 'text/plain',
 		key: 'text', 
 		decode: utf8_from_bytes,
-		encode: utils.toBytes
+		encode: utils.utf8ToBytes
 	},
 	{
 		mime: 'text/html',
 		key: 'html', 
 		decode: utf8_from_bytes,
-		encode: utils.toBytes
+		encode: utils.utf8ToBytes
 	},
 	{
 		mime: 'application/json',
 		key: 'json',
 		decode: v => JSON.parse(utf8_from_bytes(v)),
-		encode: x => utils.toBytes(JSON.stringify(x))
+		encode: x => utils.utf8ToBytes(JSON.stringify(x))
 	}
 ];
 
@@ -233,10 +312,10 @@ const Onion = {
 		};
 	},
 	fromPubkey(x, version = 3) {
-		let pubkey = bytes_from_phex(x);
+		let pubkey = bytes_from(x, false);
 		if (pubkey.length !== 32) throw error_with(`expected 32-byte pubkey`, {pubkey});
 		let v = new Uint8Array(48); // 15 + 32 + 1
-		v.set(utils.toBytes(ONION_SUFFIX + ' checksum'));
+		v.set(toBytes(ONION_SUFFIX + ' checksum'));
 		v.set(pubkey, 15);
 		v.set(47, version);
 		let bytes = new Uint8Array(35);
@@ -271,7 +350,7 @@ const GenericURL = {
 };
 
 function encode_mime_data(mime, data) {
-	mime = utils.toBytes(mime);
+	mime = toBytes(mime);
 	let len = [];
 	let pos = cid.uvarint.write(len, mime.length);
 	let v = new Uint8Array(pos + mime.length + data.length);
@@ -331,10 +410,14 @@ class CIDHash extends SchemeHash {
 	toObject(v)  { return cid.CID.from(v); }
 }
 class CodedHash extends SchemeHash {
-	parseHash(s) {
-		let v = this.coder.decode(s);
-		this.validate(v);
-		return v;
+	parseHash(hash) {
+		try {
+			let v = this.coder.decode(hash);
+			this.validate(v);
+			return v;
+		} catch (err) {
+			throw error_with('invalid hash', {hash}, err);
+		}
 	}
 	toHash(v)   { return this.coder.encode(v); }
 	toObject(v) { return {hash: this.toHash(v)}; }
@@ -385,13 +468,38 @@ const SPECS = Object.freeze([
 const CODEC_MAP = new Map(SPECS.map(x => [x.codec, x]));
 const SCHEME_MAP = new Map(SPECS.filter(x => x.scheme).map(x => [x.scheme, x]));
 
-class ContentHash {
+class Chash {
+	static from(x, hint) {
+		if (hint) {
+			let spec = SCHEME_MAP.get(hint);
+			if (spec) {
+				return this.fromParts(spec, spec.parseHash(x));
+			}
+			let short = SHORT_DATAURL_KEYS.find(x => x.key === hint);
+			if (short) {
+				return this.fromParts(DataURL, encode_mime_data(short.mime, short.encode(x)));
+			}
+			if (hint.includes('/')) {
+				return this.fromParts(DataURL, encode_mime_data(hint, toBytes(x)));
+			}
+			if (hint === KEY_ONION) {
+				return this.fromOnion(x);
+			} 
+		}
+		let v = try_coerce_bytes(x);
+		if (v !== x) {
+			return this.fromBytes(v);
+		} else if (is_string(x)) {
+			return this.fromURL(x);
+		}
+		throw error_with('unknown contenthash', {hint, value: x});
+	}
 	static fromParts(codec, data) {
-		if (!is_number(codec)) {
-			if (!codec.codec) throw error_with('expected codec', {codec});
+		if (!Number.isInteger(codec)) {
+			if (!codec?.codec) throw error_with('expected codec', {codec});
 			codec = codec.codec;
 		}
-		data = bytes_from_phex(data);
+		data = bytes_from(data, true);
 		let len = [];
 		cid.uvarint.write(len, codec);
 		let v = new Uint8Array(len.length + data.length);
@@ -413,42 +521,15 @@ class ContentHash {
 		}
 		throw error_with('invalid hash', {hash, data});
 	}
-	static fromEntry(key, value) {
-		let spec = SCHEME_MAP.get(key);
-		if (spec) {
-			return this.fromParts(spec, spec.parseHash(value));
-		}
-		let short = SHORT_DATAURL_KEYS.find(x => x.key === key);
-		if (short) {
-			return this.fromParts(DataURL, encode_mime_data(short.mime, short.encode(value)));
-		}
-		if (key.includes('/')) {
-			return this.fromParts(DataURL, encode_mime_data(key, utils.toBytes(value)));
-		}
-		if (key === KEY_ONION) {
-			return this.fromOnion(value);
-		} 
-		// the key didn't hint
-		if (value instanceof this) {
-			return value;
-		} else if (is_string(value)) {
-			if (maybe_phex(value)) {
-				return this.fromBytes(value);
-			} else {
-				return this.fromURL(value);
-			}
-		}
-		throw error_with('unknown contenthash', {key, value});
-	}
 	static fromBytes(x) {
-		let bytes = bytes_from_phex(x);
+		let bytes = bytes_from(x, false);
 		let [codec, pos] = cid.uvarint.read(bytes);
 		let spec = SPECS.find(x => x.codec === codec);
-		if (!spec) throw error_with(`unknown contenthash codec: ${codec}`, {codec, bytes});
+		if (!spec) throw error_with('unknown contenthash codec', {codec, bytes});
 		return this.fromURL(spec.toURL(bytes.subarray(pos)));
 	}
 	static fromURL(url) {
-		let {scheme, authority} = split_url(url);
+		let {scheme, authority} = split_url(url.toString());
 		let spec = SCHEME_MAP.get(scheme);
 		if (spec) {
 			return this.fromParts(spec, spec.parseHash(authority));
@@ -456,7 +537,7 @@ class ContentHash {
 		if (scheme === 'http' && authority.endsWith(ONION_SUFFIX)) {
 			return this.fromOnion(authority.slice(0, -ONION_SUFFIX.length));
 		}
-		return this.fromParts(GenericURL, utils.toBytes(url));
+		return this.fromParts(GenericURL, utils.utf8ToBytes(url));
 	}
 	constructor(bytes) {
 		this.bytes = bytes;
@@ -491,7 +572,7 @@ class ContentHash {
 		return spec.gateway?.(spec.toHash(v), spec, v) ?? spec.toURL(v);
 	}
 	toPhex() {
-		return phex_from_bytes(this.bytes); 
+		return '0x' + utils.bytesToHex(this.bytes); 
 	}
 	toJSON() { 
 		return this.toURL(); 
@@ -500,9 +581,8 @@ class ContentHash {
 
 // simple parsing since URL varies between browsers
 function split_url(url) {
-	url = url.toString();
 	let pos = url.indexOf(SCHEME_SEPARATOR);
-	if (!pos) throw error_with(`expected scheme separator`, {url});
+	if (!pos) throw error_with('expected scheme separator', {url});
 	let scheme = url.slice(0, pos);	
 	let authority = url.slice(pos + SCHEME_SEPARATOR.length);
 	let rest = '';
@@ -528,26 +608,28 @@ class Pubkey {
 		try {
 			if (value instanceof Uint8Array) {
 				return new this(value);
-			} else if (is_string(value)) {
-				return new this(bytes_from_phex(value));
+			} else if (is_samecase_phex(value)) {
+				return new this(utils.hexToBytes(value.slice(2)));
 			} else if (typeof value === 'object') {
 				return this.fromXY(value.x, value.y);
 			} 
-			throw new Error('unknown value');
+			throw new Error('unknown format');
 		} catch (err) {
-			throw error_with('invalid pubkey format', {value}, err);
+			throw error_with('invalid pubkey', {value}, err);
 		}
 	}
-	constructor(bytes) {
-		let v = new Uint8Array(64);
-		if (bytes) {
-			if (bytes.length != 64) {
-				throw error_with('expected 64 bytes', {bytes});
+	constructor(v) {
+		if (v) {
+			if (v instanceof Uint8Array && v.length == 64) {
+				this.bytes = v.slice();
+			} else {
+				throw error_with('expected 64 bytes', {bytes: v});
 			}
-			v.set(bytes);
+		} else {
+			this.bytes = new Uint8Array(64);
 		}
-		this.bytes = v;
 	}
+	get empty() { return this.bytes.every(x => x == 0); }
 	set x(x) { this.bytes.set(bytes32_from(x), 0); }
 	set y(x) { this.bytes.set(bytes32_from(x), 32); }
 	get x() { return this.bytes.slice(0, 32); }
@@ -559,113 +641,329 @@ class Pubkey {
 	}
 	toJSON() {
 		return {
-			x: drop_zeros(phex_from_bytes(this.x)),
-			y: drop_zeros(phex_from_bytes(this.y))
+			x: drop_zeros(utils.bytesToHex(this.x)),
+			y: drop_zeros(utils.bytesToHex(this.y))
 		};
 	}
 }
 
 function drop_zeros(s) {
-	return s.replace(/^0x0+/, '0x');
+	return s.replace(/^0*/, '0x');
 }
+
+const TEXT    = 0x59d1d43c; // https://adraffy.github.io/keccak.js/test/demo.html#algo=evm&s=text%28bytes32%2Cstring%29&escape=1&encoding=utf8
+const ADDR    = 0xf1cb7e06; // https://adraffy.github.io/keccak.js/test/demo.html#algo=evm&s=addr%28bytes32%2Cuint256%29&escape=1&encoding=utf8
+const CHASH   = 0xbc1c58d1; // https://adraffy.github.io/keccak.js/test/demo.html#algo=evm&s=contenthash%28bytes32%29&escape=1&encoding=utf8
+const PUBKEY  = 0xc8690233; // https://adraffy.github.io/keccak.js/test/demo.html#algo=evm&s=pubkey%28bytes32%29&escape=1&encoding=utf8
+const NAME    = 0x691f3431; // https://adraffy.github.io/keccak.js/test/demo.html#algo=evm&s=name%28bytes32%29&escape=1&encoding=utf8
+const ADDR0   = 0x3b3b57de; // https://adraffy.github.io/keccak.js/test/demo.html#algo=evm&s=addr%28bytes32%29&escape=1&encoding=utf8
 
 const PREFIX_COIN = '$';
 const PREFIX_MAGIC = '#';
 
-class Record extends Map {
+const SYM_CHASH  = Symbol('#chash');
+const SYM_PUBKEY = Symbol('#pubkey');
+const SYM_NAME   = Symbol('#name');
+
+class Record {
+	static get CHASH() { return SYM_CHASH; }
+	static get PUBKEY() { return SYM_PUBKEY; }
+	static get NAME() { return SYM_NAME; }
 	static from(json) {
-		let self = new this();
+		let r = new this();
 		for (let [k, v] of Object.entries(json)) {
-			self.put(k, v);
+			r.put(k, v);
 		}
-		return self;
+		return r;
+	}
+	constructor() {
+		this.map = new Map();
+	}
+	get size() {
+		return this.map.size;
+	}
+	[Symbol.iterator]() {
+		return this.mapEntries(x => x);
+	}
+	*mapEntries(fn) {
+		for (let [k, x] of this.map) {
+			if (is_string(k)) {
+				yield [k, fn(x)];
+			} else if (is_bigint(k)) {
+				yield [PREFIX_COIN + x.coin.name, fn(x)];
+			} else if (typeof k === 'symbol') {
+				yield [k.description, fn(x)];
+			}
+		}
+	}
+	getChash() { return this.map.get(SYM_CHASH); }
+	setChash(x) {
+		if (x) {
+			this.map.set(SYM_CHASH, x instanceof Chash ? x : Chash.from(x));
+		} else {
+			this.map.delete(SYM_CHASH);
+		}
+	}
+	getPubkey() { return this.map.get(SYM_PUBKEY); }
+	setPubkey(x) {
+		if (x) {
+			this.map.set(SYM_PUBKEY, x instanceof Pubkey ? x : Pubkey.from(x));
+		 } else {
+			this.map.delete(SYM_PUBKEY);
+		 }
+	}
+	setName(x) {
+		if (x && !is_string(x)) {
+			throw error_with('unknown name', {name: x})
+		} else if (x) {
+			this.map.set(SYM_NAME, x);
+		} else {
+			this.map.delete(SYM_NAME);
+		}
+	}
+	setText(key, value) {
+		if (!is_string(key) || (value && !is_string(value))) {
+			throw error_with('expected key', {key, value})
+		} else if (value) {
+			this.map.set(key, value);
+		} else {
+			this.map.delete(key);
+		}
+	}
+	getAddress(x) { return this.map.get(Coin.from(x).type); }
+	setAddress(x, y) {
+		if (x instanceof Address) {
+			this.map.set(x.coin.type, x);
+		} else if (y) {
+			let a = Address.from(x, y);
+			this.map.set(a.coin.type, a);
+		} else {
+			this.map.delete(Coin.from(x).type);
+		}
 	}
 	put(key, value) {
-		// json:                  | getter:       | storage:
-		// {"name": "Raffy"}      | text(key)     | {key: string} 
-		// {"$eth": "0x5105...}   | addr(type)    | {${coin.name}: Address}
-		// {"#ipfs": "Qm..."}     | contenthash() | {Record.CONTENTHASH: Contenthash}
-		// {"#pubkey": {x, y}}    | pubkey()      | {Record.PUBKEY: Pubkey}
-		// {"#name": "raffy.eth"} | name()        | {Record.NAME: string}
 		try {
 			let k = key;
-			let x = value;
-			if (k.startsWith(PREFIX_COIN)) {
-				if (x) x = Address.from(k.slice(PREFIX_COIN.length), x);
-				k = x.type;
-			} else if (k === Record.PUBKEY) {
-				if (x) x = Pubkey.from(x);
-			} else if (k === Record.NAME) {
-				// unmodified
-			} else if (k.startsWith(PREFIX_MAGIC)) {
-				if (x) x = ContentHash.fromEntry(k.slice(PREFIX_MAGIC.length), x);
-				k = Record.CONTENTHASH;
+			if (typeof k === 'symbol') {
+				k = k.description;
+			} else if (!is_string(k)) {
+				throw new Error('expected key');
 			}
-			if (x) {
-				this.set(k, x);
+			if (k.startsWith(PREFIX_COIN)) {
+				this.setAddress(k.slice(PREFIX_COIN.length), value);
+			} else if (k === SYM_PUBKEY.description) {
+				this.setPubkey(value);
+			} else if (k === SYM_NAME.description) {
+				this.setName(value);
+			} else if (k.startsWith(PREFIX_MAGIC)) {
+				this.setChash(value && Chash.from(value, k.slice(PREFIX_MAGIC.length)));
 			} else {
-				this.delete(k);
+				this.setText(k, value);
 			}
 		} catch (err) {
-			throw error_with(`Storing "${key}": ${err.message}`, {key, value}, err);
+			throw error_with(`put "${key}": ${err.message}`, {key, value}, err);
 		}
 	}
-	text(key) {
-		return this.get(key);
-	}
-	addr(type) {
-		return this.get(type)?.bytes;
-	}
-	contenthash() {
-		return this.get(Record.CONTENTHASH)?.bytes;
-	}
-	pubkey() {
-		return this.get(Record.PUBKEY)?.bytes;
-	}
-	name() {
-		return this.get(Record.NAME);
-	}
-	toEntries() {
-		return [...this].map(x => {
-			let [k, v] = x;
-			if (v instanceof Address) {
-				return [PREFIX_COIN + v.coin.name, v.toObject()];
-			}
-			switch (k) {
-				case Record.CONTENTHASH: {
-					[k, v] = v.toEntry();
-					return [PREFIX_MAGIC + k, v];
-				}
-				case Record.PUBKEY: return [k, v.toObject()];
-			}
-			return x;
-		});
-	}
 	toObject() {
-		return Object.fromEntries(this.toEntries());
-	}
-	toJSONEntries() {
-		return [...this].map(x => {
-			let [k, v] = x;
-			if (v instanceof Address) {
-				return [PREFIX_COIN + v.coin.name, v.toJSON()];
-			}
-			switch (k) {
-				case Record.CONTENTHASH: return [k, v.toJSON()];
-				case Record.PUBKEY: return [k, v.toJSON()];
-			}
-			return x;
-		});
+		return Object.fromEntries(this.mapEntries(x => is_string(x) ? x : x.toObject()));
 	}
 	toJSON() {
-		return Object.fromEntries(this.toJSONEntries());
+		return Object.fromEntries(this.mapEntries(x => is_string(x) ? x : x.toJSON()));		
+	}
+	parseCalls(calls, answers) {
+		if (calls.size != answers.length) {
+			throw error_with('call/answer mismatch', {calls: calls.length, answers: answers.size})
+		}
+		calls.forEach((call, i) => {
+			try {
+				this.parseCall(call, answers[i]);
+			} catch (err) {
+			}
+		});
+	}
+	parseCall(call, answer) {
+		try {
+			call = bytes_from(call, false);
+			answer = bytes_from(answer, false);
+			if (!answer.length) {
+				throw new Error('no answer');
+			} else if (!((answer.length - 4) & 31)) {
+				throw new Error('revert');
+			} else if (answer.length & 31) {
+				throw new Error('odd answer');
+			}
+			let dv = utils.createView(call);
+			switch (dv.getUint32(0)) {
+				case CHASH: {
+					this.chash = read_memory(answer, 0);
+					break;
+				}
+				case PUBKEY: {
+					this.pubkey = Pubkey.from(answer);
+					break;
+				}
+				case ADDR0: {
+					let v = read_memory(answer, 0);
+					if (v.length != 32) throw new Error('expected 32 bytes');
+					this.map.setAddress(60, v.some(x => x) ? v.subarray(-20) : null);
+					break;
+				}
+				case NAME: {
+					this.map.setName(utf8_from_bytes(read_memory(answer, 0)));
+					break;
+				}
+				case ADDR: {
+					this.map.setAddress(bigUintAt(call, 36), read_memory(answer, 0));
+					break;
+				}
+				case TEXT: {
+					this.map.setText(utf8_from_bytes(read_memory(call, 36)), utf8_from_bytes(read_memory(answer, 0)));
+					break;
+				}
+				default: throw new Error('unknown sighash');
+			}
+		} catch (err) {
+			throw error_with('parse error', {call, answer}, err);
+		}
+	}
+	// ezccip interface
+	text(key)     { return this.map.get(key); }
+	addr(type)    { return this.map.get(type instanceof Coin ? type.type : BigInt(type))?.bytes; }
+	contenthash() { return this.map.get(SYM_CHASH)?.bytes; }
+	pubkey()      { return this.map.get(SYM_PUBKEY)?.bytes; }
+	name()        { return this.map.get(SYM_NAME); }
+}
+
+class Profile {	
+	static from(x) {
+		if (x instanceof Record) {
+			let p = new this();
+			p.copyRecord(x);
+			return p;
+		}
+		// TODO json?
+		throw error_with('unknown profile', {profile: x});
+	}
+	constructor() {
+		this.clear();
+	}
+	clear() {
+		this.texts = new Set();
+		this.addrs = new Set();
+		this.chash = false;
+		this.pubkey = false;
+		this.name = false;
+		this.addr0 = false;
+	}
+	get size() {
+		return this.texts.size + this.addrs.size + this.chash + this.pubkey + this.addr0 + this.name;
+	}
+	copyRecord(r) {
+		for (let k of r.map.keys()) {
+			if (is_string(k)) {
+				this.texts.add(k);
+			} else if (is_bigint(k)) {
+				this.addrs.add(k);
+			} else if (typeof k === 'symbol') {
+				this.setProp(k);
+			}
+		}
+	}
+	setProp(x, on = true) {
+		if (Array.isArray(x)) {
+			for (let y of x) this.setProp(y, on);
+		} else {
+			switch (x) {
+				case SYM_CHASH:  this.chash  = on; break;
+				case SYM_PUBKEY: this.pubkey = on; break;
+				case SYM_NAME:   this.name   = on; break;
+				default: throw error_with('unknown prop', {prop: x});
+			}
+		}
+	}
+	setText(x, on = true) {
+		if (Array.isArray(x)) {
+			for (let y of x) this.setText(y, on);
+		} else if (on) {
+			this.texts.add(x);
+		} else {
+			this.texts.delete(x);
+		}
+	}
+	setCoin(x, on = true) {
+		if (Array.isArray(x)) {
+			for (let y of x) this.setCoin(y, on);
+		} else {
+			let {type} = Coin.from(x);
+			if (on) {
+				this.addrs.add(type);
+			} else {
+				this.addrs.delete(type);
+			}
+		}
+	}
+	makeCallsForName(name) {
+		return this.makeCalls(sha3.keccak_256(name));
+	}
+	makeCalls(node = 0) {
+		node = bytes32_from(node);
+		let calls = [];
+		for (let x of this.texts) {
+			calls.push(make_call_with_bytes(TEXT, node, utils.utf8ToBytes(x)));
+		}
+		for (let x of this.addrs) {
+			calls.push(make_call_with_uint(ADDR, node, x));
+		}
+		if (this.chash)  calls.push(make_call(CHASH, node));
+		if (this.pubkey) calls.push(make_call(PUBKEY, node));
+		if (this.name)   calls.push(make_call(NAME, node));
+		if (this.addr0)  calls.push(make_call(ADDR0, node));
+		return calls;
 	}
 }
-for (let x of ['CONTENTHASH', 'PUBKEY', 'NAME']) {
-	Object.defineProperty(Record, x, {value: PREFIX_MAGIC + x.toLowerCase()});
+
+function make_call(selector, node) {
+	let v = new Uint8Array(36);
+	let dv = new DataView(v.buffer);
+	dv.setUint32(0, selector);
+	v.set(node, 4);
+	return v;
+}
+function make_call_with_bytes(selector, node, data) {
+	let v = new Uint8Array(100 + (Math.ceil(data.length / 32) << 5));
+	let dv = new DataView(v.buffer);
+	dv.setUint32(0, selector);
+	v.set(node, 4);
+	v[67] = 64;
+	dv.setUint32(96, data.length);
+	v.set(data, 100);
+	return v;
+}
+function make_call_with_uint(selector, node, arg) {
+	let v = new Uint8Array(68);
+	let dv = new DataView(v.buffer);
+	dv.setUint32(0, selector);
+	v.set(node, 4);
+	v.set(bytes32_from(arg), 36);
+	return v;
+}
+
+function safe_uint(i) {
+	if (i > Number.MAX_SAFE_INTEGER) throw error_with('overflow', {i});
+	return Number(i);
+}
+
+function read_memory(v, pos) {
+	pos = safe_uint(bigUintAt(v, pos));
+	let len = safe_uint(bigUintAt(v, pos)); pos += 32;
+	return v.subarray(pos, pos + len);
 }
 
 const LABEL_SELF = '.';
+
+function split(s) {
+	return s ? s.split('.') : [];
+}
 
 class Node extends Map {
 	static root(name) {
@@ -674,7 +972,7 @@ class Node extends Map {
 	constructor(label, parent) {
 		super();
 		this.label = label;
-		this.parent = parent || null;
+		this.parent = parent || undefined;
 		this.record = null;
 	}
 	get name() {
@@ -685,7 +983,7 @@ class Node extends Map {
 	}
 	get depth() {
 		let n = 0;
-		for (let x = this.parent; x.parent; x = x.parent) ++n;
+		for (let x = this; x.parent; x = x.parent) ++n;
 		return n;
 	}
 	get nodes() {
@@ -696,11 +994,11 @@ class Node extends Map {
 	// get node "a" from "a.b.c" or null
 	// find("") is identity
 	find(name) {
-		return split_norm(name).reduceRight((x, s) => x?.get(s), this);
+		return split(name).reduceRight((x, s) => x?.get(s), this);
 	}
 	// ensures the nodes for "a.b.c" exist and returns "a"
 	create(name) {
-		return split_norm(name).reduceRight((x, s) => x.child(s), this);
+		return split(name).reduceRight((x, s) => x.child(s), this);
 	}
 	// gets or creates a subnode of this node
 	child(label) {
@@ -773,14 +1071,20 @@ class Node extends Map {
 
 exports.Address = Address;
 exports.Arweave = Arweave;
+exports.Chash = Chash;
 exports.Coin = Coin;
-exports.ContentHash = ContentHash;
 exports.DataURL = DataURL;
+exports.ETH = ETH;
 exports.GenericURL = GenericURL;
 exports.IPFS = IPFS;
 exports.IPNS = IPNS;
 exports.Node = Node;
 exports.Onion = Onion;
+exports.Profile = Profile;
+exports.Pubkey = Pubkey;
 exports.Record = Record;
 exports.SPECS = SPECS;
 exports.Swarm = Swarm;
+exports.UnknownCoin = UnknownCoin;
+exports.UnnamedCoin = UnnamedCoin;
+exports.UnnamedEVMCoin = UnnamedEVMCoin;

@@ -1,34 +1,38 @@
-import {bytes_from_phex, phex_from_bytes} from './utils.js';
-import {Coin} from './Coin.js';
+import {is_string, error_with, try_coerce_bytes} from './utils.js';
+import {Coin, ETH, UnknownCoin} from './Coin.js';
+import {bytesToHex} from '@noble/hashes/utils';
 
 export class Address {
-	static from(x, s) {
-		let coin = Coin.from(x);
-		return new this(coin, coin.decode(s));
-	}
-	static fromParts(type, x) {
-		let coin = Coin.fromType(type);
-		let v = bytes_from_phex(x);
-		coin.encode(v); // validate
-		if (v === x) v = v.slice();
-		return new this(coin, v);
+ 	static from(coin, value) {
+		if (value === undefined) { // eth shorthand
+			value = coin;
+			coin = ETH;
+		} else {
+			coin = Coin.from(coin);
+		}
+		let v = try_coerce_bytes(value);
+		if (v !== value) {
+			coin.format(v); // validate
+			return new this(coin, v);
+		} else if (is_string(value)) {
+			return new this(coin, coin.parse(value));
+		}
+		throw new error_with('unknown address format', {coin, value});
 	}
 	constructor(coin, bytes) {
 		this.coin = coin;
 		this.bytes = bytes;
 	}
-	get type() { return this.coin.type; }
-	get name() { return this.coin.name; }
 	get value() { 
 		let {coin, bytes} = this;
-		return coin.encode(bytes);
+		return coin.format(bytes);
 	}
 	toObject() {
-		let {type, name, value, bytes} = this;
-		return {type, name, value, bytes};
+		let {coin, bytes, value} = this;
+		return {coin: coin.toObject(), value, bytes};
 	}
 	toPhex() {
-		return phex_from_bytes(this.bytes);
+		return '0x' + bytesToHex(this.bytes);
 	}
 	toString() {
 		return this.value;

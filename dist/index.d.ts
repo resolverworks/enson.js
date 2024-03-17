@@ -1,12 +1,12 @@
-export type BigIntLike = number | string | BigInt;
-export type DataLike = Uint8Array | number[] | string;
+export type ToBigInt = number | string | BigInt;
+export type ToData = Uint8Array | number[] | string;
 
 export class Pubkey {
-	static fromXY(x: BigIntLike, y: BigIntLike): Pubkey;
-	static from(value: Uint8Array | string | {x: BigIntLike, y: BigIntLike}): Pubkey;
+	static fromXY(x: ToBigInt, y: ToBigInt): Pubkey;
+	static from(value: Uint8Array | string | {x: ToBigInt, y: ToBigInt}): Pubkey;
 	constructor(v?: Uint8Array);
-	set x(i: BigIntLike);
-	set y(i: BigIntLike);
+	set x(i: ToBigInt);
+	set y(i: ToBigInt);
 	get x(): Uint8Array;
 	get y(): Uint8Array;
 	toAddress(): string;
@@ -15,84 +15,117 @@ export class Pubkey {
 	toJSON(): {x: string, y: string};
 }
 
-export type GatewayFn = (hash: string, spec: ContentHashSpec, data: Uint8Array) => string;
-export class ContentHashSpec {
+export type GatewayFn = (hash: string, spec: ChashSpec, data: Uint8Array) => string;
+export class ChashSpec {
 	readonly codec: number;
 	readonly name: string;
 	readonly scheme?: string;
 	gateway?: GatewayFn;
 }
-export const Onion: ContentHashSpec | {
-	fromPubkey(pubkey: DataLike, version?: number): Uint8Array;
+export const Onion: ChashSpec | {
+	fromPubkey(pubkey: ToData, version?: number): Uint8Array;
 };
-export const GenericURL: ContentHashSpec;
-export const DataURL: ContentHashSpec;
-export const IPFS: ContentHashSpec;
-export const IPNS: ContentHashSpec;
-export const Swarm: ContentHashSpec;
-export const Arweave: ContentHashSpec;
+export const GenericURL: ChashSpec;
+export const DataURL: ChashSpec;
+export const IPFS: ChashSpec;
+export const IPNS: ChashSpec;
+export const Swarm: ChashSpec;
+export const Arweave: ChashSpec;
 
-export class ContentHash {
-	static fromParts(codec: number | ContentHashSpec, data: DataLike): ContentHash;
-	static fromOnion(hash: DataLike): ContentHash;
-	static fromEntry(key: string, value: any): ContentHash;
-	static fromBytes(raw: DataLike): ContentHash;
-	static fromURL(url: String | URL): ContentHash;
+export class Chash {
+	static from(value: any, hint?: string): Chash;
+	static fromParts(codec: number | ChashSpec, data: ToData): Chash;
+	static fromOnion(hash: ToData): Chash;
+	static fromBytes(raw: ToData): Chash;
+	static fromURL(url: string | URL): Chash;
 	constructor(v: Uint8Array);
 	readonly bytes: Uint8Array;
 	get codec(): number;
-	get spec(): ContentHashSpec;
+	get spec(): ChashSpec;
 	get data(): Uint8Array;
 	toHash(): string;
 	toObject(): object;
-	toEntry(): [key: string, value: any];
+	toEntry(): [key: string, value: string];
 	toURL(): string;
 	toGatewayURL(): string;
 	toPhex(): string;
 	toJSON(): string;
 }
 
-export type CoinQuery = Coin | number | string | {name?: string, type?: number, chain?: number};
+export type CoinQuery = Coin | ToBigInt | {name?: string, type?: ToBigInt, chain?: number};
 
 export class Coin {
-	static fromType(type: number): Coin;
+	static get count(): number;
+	static [Symbol.iterator](): IterableIterator<Coin>;
+	static from(query: CoinQuery): Coin;
+	static fromType(type: ToBigInt): Coin;
 	static fromName(name: string): Coin;
 	static fromChain(chain: number): Coin;
-	static from(query: CoinQuery): Coin;
-	readonly type: number;
-	readonly name: string;
+	readonly type: bigint;
+	get name(): string;
+	get title(): string;
 	get chain(): number | undefined;
-	encode(s: string): Uint8Array;
-	decode(v: Uint8Array): string;
+	get isUnknown(): boolean;
+	toObject(): {type: bigint, name: string, title: string, chain: number | undefined};
+	parse(s: string): Uint8Array;
+	format(v: Uint8Array): string;
 }
 
 export class Address {
-	static from(query: CoinQuery, value: string): Address;
-	static fromParts(type: number, raw: DataLike): Address;	
+	static from(query: CoinQuery, value?: string): Address;
 	readonly coin: Coin;
 	readonly bytes: Uint8Array;
-	get type(): number;
-	get name(): string;
 	get value(): string;
-	toObject(): {type: number, name: string, value: string, bytes: Uint8Array};
+	toObject(): {coin: Coin, value: string, bytes: Uint8Array};
 	toPhex(): string;
 	toJSON(): string;
 }
 
-export type RecordObject = {[key: string]: any};
+export class Profile {
+	static from(x: any): Profile;
+		
+	get size(): number;
+	texts: Set<string>;
+	coins: Set<Coin>;
+	chash: boolean;
+	pubkey: boolean;
+	name: boolean;	
+	addr0: boolean;
 
-export class Record extends Map {
-	static from(json: RecordObject): Record;
+	clear(): void;
+	setCoin(query: CoinQuery | CoinQuery[], on?: boolean): void;
+	setText(key: string | string[], on?: boolean): void;
+	makeCallsForName(name: string): Uint8Array[];
+	makeCalls(node: ToData): Uint8Array[];
+	createRecord(answers: ToData[]): Record;
+}
+
+export type KeyedObject = {[key: string]: any};
+
+export class Record {
+	static readonly CHASH: Symbol;
+	static readonly PUBKEY: Symbol;
+	static readonly NAME: Symbol;
+
+	static from(json: KeyedObject): Record;
+	get size(): number;
 	
-	toObject(): RecordObject;
-	toJSON(): RecordObject;
-	toEntries(compact: boolean): [key: string, value: any][];
-
+	[Symbol.iterator](): Generator<[key: string, value: KeyedObject], void, unknown>;
 	put(key: string, value?: any): void;
+	
+	text(key: string): string | undefined;
+	addr(type: Coin | number): Uint8Array | undefined;
+	
+	chash: Chash | undefined;
+	pubkey: Pubkey | undefined;
+	name: string | undefined;	
+	addr0: Address | undefined;
+	
+	toObject(): KeyedObject;
+	toJSON(): KeyedObject;
+	toEntries(): [key: string, value: any][];
 
-	static readonly CONTENTHASH: string;
-	static readonly PUBKEY: string;
-	static readonly NAME: string;
+
 }
 
 export class Node extends Map {
@@ -110,10 +143,17 @@ export class Node extends Map {
 	find(name: string): Node | undefined;
 	create(name: string): Node;
 	child(label: string): Node;
-	importJSON(any: any): void;
+	importJSON(json: any): void;
 
 	scan(fn: (node: Node, level: number) => void, level?: number): void;
 	collect<T>(fn: (node: Node, level: number) => T | undefined): T[];
 	flat(): Node[];
 	print(): void;
 }
+
+// export function error_with(message: string, options: Object, cause?: any): Error;
+// export function is_number(x: any): boolean;
+// export function is_string(x: any): boolean;
+// export function maybe_phex(x: any): boolean;
+// export function bytes_from_data(x: ToData): Uint8Array;
+// export function bytes32_from(x: ToBigInt | Uint8Array): Uint8Array;

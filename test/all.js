@@ -1,2 +1,3 @@
 import './Address.js';
-import './ContentHash.js';
+import './Chash.js';
+//import './Profile.js';
