@@ -209,13 +209,9 @@ for (let x of [PREFIX_CHASH, PREFIX_PUBKEY, PREFIX_NAME]) {
 
 export class Profile {	
 	static from(x) {
-		if (x instanceof Record) {
-			let p = new this();
-			p.import(x);
-			return p;
-		}
-		// TODO json?
-		throw error_with('unknown profile', {profile: x});
+		let p = new this();
+		p.import(x);
+		return p;
 	}
 	constructor() {
 		this.clear();
@@ -229,19 +225,31 @@ export class Profile {
 		this.addr0 = false;
 	}
 	get size() {
-		return this.texts.size + this.addrs.size + this.chash + this.pubkey + this.addr0 + this.name;
+		return this.texts.size + this.addrs.size + this.chash + this.pubkey + this.name + this.addr0;
 	}
-	import(r) {
-		for (let k of r.map.keys()) {
-			if (is_string(k)) {
-				this.texts.add(k);
-			} else {
-				this.addrs.add(k);
+	import(x) {
+		if (x instanceof Record) {
+			for (let k of x.map.keys()) {
+				if (is_string(k)) {
+					this.texts.add(k);
+				} else {
+					this.addrs.add(k);
+				}
 			}
+			this.chash  = !!x._chash;
+			this.pubkey = !!x._pubkey;
+			this.name   = !!x._name;
+		} else if (x instanceof Profile) {
+			x.texts.forEach(y => this.texts.add(y));
+			x.coins.forEach(y => this.coins.add(y));
+			this.chash  = x.chash;
+			this.pubkey = x.pubkey;
+			this.name   = x.name;
+			this.addr0  = x.addr0;
+		} else {
+			// TODO json?
+			throw error_with('unknown profile format', {profile: x});
 		}
-		this.chash  = !!r._chash;
-		this.pubkey = !!r._pubkey;
-		this.name   = !!r._name;
 	}
 	setProp(x, on = true) {
 		if (Array.isArray(x)) {

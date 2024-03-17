@@ -39,3 +39,11 @@ let vitalik = Record.from({
     '#name': 'vitalik.eth',
 });
 console.log(Profile.from(vitalik));
+
+// why the fuck isn't something like this standard in browsers?
+let x = {
+	[Symbol.for('nodejs.util.inspect.custom')]() { 
+		return 'a';
+	}
+};
+console.log(x);
