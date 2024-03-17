@@ -1,6 +1,6 @@
 import {getCoderByCoinType, coinNameToTypeMap, coinTypeToNameMap} from '@ensdomains/address-encoder';
 import {error_with, is_bigint, is_number, is_string, is_samecase_phex} from './utils.js';
-import {bytesToHex, hexToBytes} from '@noble/hashes/utils';
+import {hexToBytes} from '@noble/hashes/utils';
 
 const COINS = new Map();
 const TYPE_ETH = 60n;
@@ -131,7 +131,7 @@ export class UnknownCoin extends UnnamedCoin {
 	get name()  { return PREFIX_UNKNOWN + this.type; }
 	get title() { return 'Unknown Coin'; }
 	parse(s)    { throw error_with('unknown parser', {coin: this, value: s}); }
-	format(v)   { return `[0x${bytesToHex(v)}]`; }
+	format(v)   { return `{${phex_from_bytes(v)}}`; }
 	toObject() {
 		let {type, title} = this;
 		return {type, title};

@@ -62,6 +62,10 @@ function bytes32_from(x) {
 	return hexToBytes(BigInt(x).toString(16).padStart(64, '0').slice(-64));
 }
 
+function phex_from_bytes$1(v) {
+	return '0x' + bytesToHex(v);
+}
+
 function bigUintAt(v, i) {
 	return BigInt(bytesToHex(v.subarray(i, i + 32)));
 }
@@ -203,7 +207,7 @@ class UnknownCoin extends UnnamedCoin {
 	get name()  { return PREFIX_UNKNOWN + this.type; }
 	get title() { return 'Unknown Coin'; }
 	parse(s)    { throw error_with('unknown parser', {coin: this, value: s}); }
-	format(v)   { return `[0x${bytesToHex(v)}]`; }
+	format(v)   { return `{${phex_from_bytes(v)}}`; }
 	toObject() {
 		let {type, title} = this;
 		return {type, title};
@@ -242,7 +246,7 @@ class Address {
 		return {coin: coin.toObject(), value, bytes};
 	}
 	toPhex() {
-		return '0x' + bytesToHex(this.bytes);
+		return phex_from_bytes$1(this.bytes);
 	}
 	toString() {
 		return this.value;
@@ -586,7 +590,7 @@ class Chash {
 		return spec.gateway?.(spec.toHash(v), spec, v) ?? spec.toURL(v);
 	}
 	toPhex() {
-		return '0x' + bytesToHex(this.bytes); 
+		return phex_from_bytes$1(this.bytes); 
 	}
 	toJSON() { 
 		return this.toURL(); 
@@ -656,7 +660,7 @@ class Pubkey {
 		return {x, y, address};
 	}
 	toPhex() {
-		return '0x' + bytesToHex(this.bytes);
+		return phex_from_bytes$1(this.bytes);
 	}
 	toJSON() {
 		let v = this.bytes;
@@ -812,7 +816,7 @@ class Record {
 		return Object.fromEntries(this.toEntries(hr));
 	}
 	parseCalls(calls, answers) {
-		if (calls.size != answers.length) {
+		if (calls.length != answers.length) {
 			throw error_with('call/answer mismatch', {calls: calls.length, answers: answers.size})
 		}
 		calls.forEach((call, i) => {
@@ -847,6 +851,7 @@ class Record {
 				default: throw new Error('unknown sighash');
 			}
 		} catch (err) {
+			console.log(err);
 			throw error_with('parse error', {call, answer}, err);
 		}
 	}

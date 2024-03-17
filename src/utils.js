@@ -59,6 +59,10 @@ export function bytes32_from(x) {
 	return hexToBytes(BigInt(x).toString(16).padStart(64, '0').slice(-64));
 }
 
+export function phex_from_bytes(v) {
+	return '0x' + bytesToHex(v);
+}
+
 export function bigUintAt(v, i) {
 	return BigInt(bytesToHex(v.subarray(i, i + 32)));
 }

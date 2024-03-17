@@ -147,7 +147,7 @@ export class Record {
 		return Object.fromEntries(this.toEntries(hr));
 	}
 	parseCalls(calls, answers) {
-		if (calls.size != answers.length) {
+		if (calls.length != answers.length) {
 			throw error_with('call/answer mismatch', {calls: calls.length, answers: answers.size})
 		}
 		calls.forEach((call, i) => {
@@ -182,6 +182,7 @@ export class Record {
 				default: throw new Error('unknown sighash');
 			}
 		} catch (err) {
+			console.log(err);
 			throw error_with('parse error', {call, answer}, err);
 		}
 	}

@@ -1,7 +1,7 @@
-import {error_with, array_equals, utf8_from_bytes, is_string, is_samecase_phex, bytes_from, try_coerce_bytes} from './utils.js';
+import {error_with, array_equals, utf8_from_bytes, is_string, phex_from_bytes, bytes_from, try_coerce_bytes} from './utils.js';
 import {CID, uvarint, Base64URL, Base64, Base32} from '@adraffy/cid';
 import {keccak_256} from '@noble/hashes/sha3';
-import {bytesToHex, utf8ToBytes, toBytes} from '@noble/hashes/utils';
+import {utf8ToBytes, toBytes} from '@noble/hashes/utils';
 
 const SCHEME_SEPARATOR = '://';
 const KEY_ONION = 'onion';
@@ -337,7 +337,7 @@ export class Chash {
 		return spec.gateway?.(spec.toHash(v), spec, v) ?? spec.toURL(v);
 	}
 	toPhex() {
-		return '0x' + bytesToHex(this.bytes); 
+		return phex_from_bytes(this.bytes); 
 	}
 	toJSON() { 
 		return this.toURL(); 

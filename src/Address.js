@@ -1,6 +1,5 @@
-import {is_string, error_with, try_coerce_bytes} from './utils.js';
+import {is_string, error_with, try_coerce_bytes, phex_from_bytes} from './utils.js';
 import {Coin, ETH} from './Coin.js';
-import {bytesToHex} from '@noble/hashes/utils';
 
 export class Address {
  	static from(coin, value) {
@@ -32,7 +31,7 @@ export class Address {
 		return {coin: coin.toObject(), value, bytes};
 	}
 	toPhex() {
-		return '0x' + bytesToHex(this.bytes);
+		return phex_from_bytes(this.bytes);
 	}
 	toString() {
 		return this.value;

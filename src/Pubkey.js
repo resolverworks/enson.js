@@ -1,4 +1,4 @@
-import {is_samecase_phex, bytes32_from, error_with} from './utils.js';
+import {is_samecase_phex, bytes32_from, error_with, phex_from_bytes} from './utils.js';
 import {ETH} from './Coin.js';
 import {keccak_256} from '@noble/hashes/sha3';
 import {hexToBytes, bytesToHex} from '@noble/hashes/utils';
@@ -51,7 +51,7 @@ export class Pubkey {
 		return {x, y, address};
 	}
 	toPhex() {
-		return '0x' + bytesToHex(this.bytes);
+		return phex_from_bytes(this.bytes);
 	}
 	toJSON() {
 		let v = this.bytes;

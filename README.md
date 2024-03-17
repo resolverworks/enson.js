@@ -4,9 +4,10 @@
 
  `npm i @resolverworks/enson`
 
-* see [types](./dist/index.d.ts) / check [examples](./examples/) / uses [ensdomains/**address-encoder**](https://github.com/ensdomains/address-encoder/)
-* (6) core classes: [Coin](./src/Coin.js),  [Address](./src/Address.js), [ContentHash](./src/Record.js), [Pubkey](./src/Record.js), [Record](./src/Record.js), [Node](./src/Record.js) 
-* works with [resolverworks/**ezccip.js**](https://github.com/adraffy/ezccip.js)
+* see [**types**](./dist/index.d.ts) / check [examples](./examples/) / uses [ensdomains/**address-encoder**](https://github.com/ensdomains/address-encoder/)
+* (7) core classes: [Coin](./src/Coin.js),  [Address](./src/Address.js), [ContentHash](./src/Record.js), [Pubkey](./src/Record.js), [Record](./src/Record.js), [Profile](./src/Record.js), [Node](./src/Record.js) 
+* works with [resolverworks/**ezccip.js**](https://github.com/resolverworks/ezccip.js)
+* used by [resolverworks/**TheOffchainGateway.js**](https://github.com/resolverworks/TheOffchainGateway.js)
 
 ### Coin
 
@@ -76,15 +77,35 @@ let vitalik = Record.from({
 });
 
 // supports all standard resolver functions
-let name = rec.text('name'); // "Vitalik"
-let addr60 = rec.addr(60); // Uint8Array(20)
-let hash = rec.contenthash(); // Uint8Array(38)
-let pubkey = rec.pubkey(); // UintArray(64)
-let name = rec.name(); // "vitalik.eth"
+let name = vitalik.text('name'); // "Vitalik"
+let addr60 = vitalik.addr(60); // Uint8Array(20)
+let hash = vitalik.contenthash(); // Uint8Array(38)
+let pubkey = vitalik.pubkey(); // UintArray(64)
+let name = vitalik.name(); // "vitalik.eth"
 
-rec.getAddress(60); // Address()
-rec.getChash(); // Chash()
-rec.getPubkey(); // Pubkey()
+vitalik.getAddress(60); // Address()
+vitalik.getChash(); // Chash()
+vitalik.getPubkey(); // Pubkey()
+```
+
+### Profile
+
+```js
+import {Record} from '@resolverworks/enson';
+
+let profile = Profile.from(vitalik);
+// Profile {
+//   texts: Set(2) { 'name', 'avatar' },
+//   addrs: Set(2) { 60n, 0n },
+//   chash: true,
+//   pubkey: true,
+//   name: true,
+//   addr0: false
+// }
+let calls = profile.makeCalls('raffy.eth'); // calldata 
+let answers = ...; // do the calls using ethers or whatever 
+let nick = new Record();
+nick.parseCalls(calls, answers);
 ```
 
 ### Node
@@ -96,7 +117,7 @@ import {Node} from '@resolverworks/enson';
 let node = Node.root();
 
 // create some subdomains, store a Record in a Node (eg. a Resolver)
-node.create('vitalik.raffy.eth').record = rec;
+node.create('vitalik.eth').record = vitalik;
 
 // import record from JSON at an existing node
 // (same as .record = Record.from({...})

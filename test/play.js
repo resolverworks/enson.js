@@ -28,3 +28,14 @@ console.log(Coin.from(69420));
 
 console.log(Pubkey.from({x: 1, y: 2}).toJSON());
 
+
+let vitalik = Record.from({
+    name: 'Vitalik',
+    $eth: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
+    $btc: 'bc1pcm5cz7zqmc23ml65m628vrln0fja6hnhewmncya3x6n6rq7t7rdqhgqlvc',
+    avatar: 'eip155:1/erc1155:0xb32979486938aa9694bfc898f35dbed459f44424/10063',
+    '#ipfs': 'k2jmtxrxbr58aa3716vvr99qallufj3qae595op83p37jod4exujup32',
+    '#pubkey': {x: 1, y: 2},
+    '#name': 'vitalik.eth',
+});
+console.log(Profile.from(vitalik));
