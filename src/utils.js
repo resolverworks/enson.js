@@ -64,7 +64,7 @@ export function phex_from_bytes(v) {
 }
 
 export function bigUintAt(v, i) {
-	return BigInt(bytesToHex(v.subarray(i, i + 32)));
+	return BigInt(phex_from_bytes(v.subarray(i, i + 32)));
 }
 
 export function array_equals(a, b) {

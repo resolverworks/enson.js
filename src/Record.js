@@ -2,7 +2,7 @@ import {Coin} from './Coin.js';
 import {Address} from './Address.js';
 import {Chash} from './Chash.js';
 import {Pubkey} from './Pubkey.js';
-import {error_with, is_string, bytes32_from, utf8_from_bytes, bigUintAt, bytes_from} from './utils.js';
+import {error_with, is_string, bytes32_from, utf8_from_bytes, bigUintAt, bytes_from, phex_from_bytes} from './utils.js';
 import {keccak_256} from '@noble/hashes/sha3';
 import {createView, utf8ToBytes} from '@noble/hashes/utils';
 
@@ -170,8 +170,15 @@ export class Record {
 			}
 			let dv = createView(call);
 			switch (dv.getUint32(0)) {
-				case SEL_TEXT:   return this.setText(utf8_from_bytes(read_memory(call, 36)), utf8_from_bytes(read_memory(answer, 0)));
-				case SEL_ADDR:   return this.setAddress(bigUintAt(call, 36), read_memory(answer, 0));
+				case SEL_TEXT:   {
+					let key = utf8_from_bytes(read_memory(call.subarray(4), 32));
+					let value = utf8_from_bytes(read_memory(answer, 0));
+					return this.setText(key, value);
+				}
+				case SEL_ADDR: {
+					let v = read_memory(answer, 0);
+					return this.setAddress(bigUintAt(calldata, 36), v.length ? v : undefined);
+				}
 				case SEL_CHASH:  return this.setChash(read_memory(answer, 0));
 				case SEL_NAME:   return this.setName(utf8_from_bytes(read_memory(answer, 0)));
 				case SEL_PUBKEY: return this.setPubkey(answer);
@@ -182,7 +189,6 @@ export class Record {
 				default: throw new Error('unknown sighash');
 			}
 		} catch (err) {
-			console.log(err);
 			throw error_with('parse error', {call, answer}, err);
 		}
 	}

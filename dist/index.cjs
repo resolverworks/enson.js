@@ -69,7 +69,7 @@ function phex_from_bytes$1(v) {
 }
 
 function bigUintAt(v, i) {
-	return BigInt(utils.bytesToHex(v.subarray(i, i + 32)));
+	return BigInt(phex_from_bytes$1(v.subarray(i, i + 32)));
 }
 
 function array_equals(a, b) {
@@ -841,8 +841,15 @@ class Record {
 			}
 			let dv = utils.createView(call);
 			switch (dv.getUint32(0)) {
-				case SEL_TEXT:   return this.setText(utf8_from_bytes(read_memory(call, 36)), utf8_from_bytes(read_memory(answer, 0)));
-				case SEL_ADDR:   return this.setAddress(bigUintAt(call, 36), read_memory(answer, 0));
+				case SEL_TEXT:   {
+					let key = utf8_from_bytes(read_memory(call.subarray(4), 32));
+					let value = utf8_from_bytes(read_memory(answer, 0));
+					return this.setText(key, value);
+				}
+				case SEL_ADDR: {
+					let v = read_memory(answer, 0);
+					return this.setAddress(bigUintAt(calldata, 36), v.length ? v : undefined);
+				}
 				case SEL_CHASH:  return this.setChash(read_memory(answer, 0));
 				case SEL_NAME:   return this.setName(utf8_from_bytes(read_memory(answer, 0)));
 				case SEL_PUBKEY: return this.setPubkey(answer);
@@ -853,7 +860,6 @@ class Record {
 				default: throw new Error('unknown sighash');
 			}
 		} catch (err) {
-			console.log(err);
 			throw error_with('parse error', {call, answer}, err);
 		}
 	}
