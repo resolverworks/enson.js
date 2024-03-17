@@ -26,5 +26,12 @@
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/resolverworks/enson.js.git"
-	}
+	},
+	"keywords": [
+		"ethereum",
+		"ens",
+		"resolver",
+		"contenthash",
+		"cid"
+	]
 }
