@@ -1,7 +1,7 @@
 type ToBigInt = number | string | BigInt;
 type ToData = Uint8Array | number[] | string;
 
-class Pubkey {
+export class Pubkey {
 	static from(value: ToData | {x: ToBigInt, y: ToBigInt}): Pubkey;
 	static fromXY(x: ToBigInt, y: ToBigInt): Pubkey;
 	constructor(v?: Uint8Array);
@@ -17,23 +17,23 @@ class Pubkey {
 }
 
 type GatewayFn = (hash: string, spec: ChashSpec, data: Uint8Array) => string;
-class ChashSpec {
+export class ChashSpec {
 	readonly codec: number;
 	readonly name: string;
 	readonly scheme?: string;
 	gateway?: GatewayFn;
 }
-const Onion: ChashSpec | {
+export const Onion: ChashSpec | {
 	fromPubkey(pubkey: ToData, version?: number): Uint8Array;
 };
-const GenericURL: ChashSpec;
-const DataURL: ChashSpec;
-const IPFS: ChashSpec;
-const IPNS: ChashSpec;
-const Swarm: ChashSpec;
-const Arweave: ChashSpec;
+export const GenericURL: ChashSpec;
+export const DataURL: ChashSpec;
+export const IPFS: ChashSpec;
+export const IPNS: ChashSpec;
+export const Swarm: ChashSpec;
+export const Arweave: ChashSpec;
 
-class Chash {
+export class Chash {
 	static from(value: ToData, hint?: string): Chash;
 	static fromParts(codec: number | ChashSpec, data: ToData): Chash;
 	static fromOnion(hash: ToData): Chash;
@@ -54,7 +54,7 @@ class Chash {
 }
 
 type CoinQuery = Coin | ToBigInt | {name?: string, type?: ToBigInt, chain?: number};
-class Coin {
+export class Coin {
 	static get count(): number;
 	static [Symbol.iterator](): IterableIterator<Coin>;
 	static type(query: CoinQuery): bigint;	
@@ -72,7 +72,7 @@ class Coin {
 	format(v: Uint8Array): string;
 }
 
-class Address {
+export class Address {
 	static from(value: ToData): Address;
 	static from(query: CoinQuery, value: ToData): Address;
 	readonly coin: Coin;
@@ -87,7 +87,7 @@ class Address {
 	toJSON(): string;
 }
 
-class Profile {
+export class Profile {
 	static from(x: Record): Profile;
 		
 	get size(): number;
@@ -108,7 +108,8 @@ class Profile {
 }
 
 type ManyRecords = Object | [any, any][];
-class Record {
+type RecordEntry = [key: string, value: any, selector: number];
+export class Record {
 	static readonly CHASH: Symbol;
 	static readonly PUBKEY: Symbol;
 	static readonly NAME: Symbol;
@@ -135,13 +136,13 @@ class Record {
 	pubkey(): Uint8Array | undefined;
 	name(): string | undefined;
 
-	[Symbol.iterator](): Generator<[key: string, value: any, selector: number], void, unknown>;	
+	[Symbol.iterator](): Generator<RecordEntry, void, unknown>;	
 	toObject(): {[key: string]: any};
-	toEntries(hr?: boolean): [key: string, value: string][];
-	toJSON(): {[key: string]: any};
+	toEntries(hr?: boolean): RecordEntry[];
+	toJSON(hr?: boolean): {[key: string]: any};
 }
 
-class Node extends Map {
+export class Node extends Map {
 	static root(name?: string): Node;
 	constructor(label: string, parent?: Node);
 

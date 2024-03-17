@@ -26,3 +26,8 @@ dump(Chash.from('<b>yo</b>', 'text/html'));
 dump(Chash.from('QmZcH4YvBVVRJtdn4RdbaqgspFU8gH6P9vomDpBVpAL3u4', 'ipfs'));
 dump(Chash.from('ipfs://QmZcH4YvBVVRJtdn4RdbaqgspFU8gH6P9vomDpBVpAL3u4'));
 dump(Chash.from('0xe301017012201687de19f1516b9e560ab8655faa678e3a023ebff43494ac06a36581aafc957e'));
+
+
+
+
+dump(Chash.from({nice: 'chonk'}, 'json'));

@@ -91,7 +91,7 @@ export class Coin {
 		} else if (name.startsWith(PREFIX_UNKNOWN)) {
 			type = BigInt(name.slice(PREFIX_UNKNOWN.length));
 		} else {
-			type = coinNameToTypeMap[name];
+			type = coinNameToTypeMap[name.toLowerCase()];
 			if (!is_number(type)) throw error_with(`unknown coin: ${name}`, {name});
 		}
 		return this.fromType(type);

@@ -26,7 +26,7 @@ let rev = root.create('addr.reverse');
 root.scan(node => {
 	let eth = node.record?.getAddress(60);
 	if (eth) {
-		rev.create(eth.value.slice(2)).record = Record.from({
+		rev.create(eth.toPhex().slice(2)).record = Record.from({
 			[Record.NAME]: node.name
 		});	
 	}

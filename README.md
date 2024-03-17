@@ -14,17 +14,25 @@
 import {Coin} from '@resolverworks/enson';
 
 // memozied coin formats
-Coin.fromName('eth') === Coin.from({name: 'eth'}) 
-Coin.fromType(60)    === Coin.from({type: 60})
+Coin.fromName('eth') === Coin.from({name: 'eth'}) === Coin.from('eth')
+Coin.fromType(60)    === Coin.from({type: 60})    === Coin.from(60)
 Coin.fromChain(1)    === Coin.from({chain: 1})
+
+console.log(Coin.from('btc'));
+// Coin { type: 0n, name: 'btc', title: 'Bitcoin' }
+console.log(Coin.fromChain(2));
+// UnnamedEVMCoin { type: 2147483650n }
+console.log(Coin.from(69420));
+// UnknownCoin { type: 69420n }
 ```
 
 ### Address
 ```js
 import {Address} from '@resolverworks/enson';
 
-Address.from('eth', '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045'); // human readable
-Address.from(0, '0x00142e6414903e4b24d05132352f71b75c165932a381'); // hex encoded btc
+Address.from('0x51050ec063d393217B436747617aD1C2285Aeeee');
+Address.from('btc', 'bc1q9ejpfyp7fvjdq5fjx5hhrd6uzevn9gupxd98aq');
+Address.from(0, '0x00142e6414903e4b24d05132352f71b75c165932a381');
 ```
 
 ### Chash
@@ -37,17 +45,17 @@ ipfs.spec; // {codec: 0xE3, name: 'IPFS'}
 ipfs.toHash(); // "k2jmtxrxbr58aa3716vvr99qallufj3qae595op83p37jod4exujup32"
 ipfs.toURL(); // "ipfs://k2jmtxrxbr58aa3716vvr99qallufj3qae595op83p37jod4exujup32"
 ipfs.toGatewayURL(); // "https://cloudflare-ipfs.com/ipfs/k2jmtxrxbr58aa3716vvr99qallufj3qae595op83p37jod4exujup32/"
-ipfs.toObject() // CID {version: 1, codec: 114, hash: Multihash(...)}
+ipfs.toObject() // { protocol: {codec: 227, name: 'IPFS'}, cid: {version: 1, codec: 112, hash: {codec: 18, data: [Uint8Array]}}}
 
-let onion = ContentHash.fromOnion('2gzyxa5ihm7nsggfxnu52rck2vv4rvmdlkiu3zzui5du4xyclen53wid');
-onion.toObject(); // {pubkey: Uint8Array(32), checksum: Uint8Array(2), version: 3}
+let onion = Chash.fromOnion('2gzyxa5ihm7nsggfxnu52rck2vv4rvmdlkiu3zzui5du4xyclen53wid');
+onion.toObject(); // {protocol: {codec: 445, name: 'Onion'}, pubkey: [Uint8Array], checksum: [Uint8Array], version: 3}
 onion.toURL(); // "http://2gzyxa5ihm7nsggfxnu52rck2vv4rvmdlkiu3zzui5du4xyclenq.onion"
 
-let json = ContentHash.from({nice: 'chonk'}, 'json'); // hint
-json.toObject(); // {json: {nice: "chonk"}}
+let json = Chash.from({nice: 'chonk'}, 'json'); // hint
+json.toObject(); // {protocol: {codec: 74565, name: 'DataURL'}, mime: 'application/json', data: [Uint8Array], abbr: 'json', value: {nice: 'chonk'}}
 json.toURL(); // "data:application/json;base64,eyJuaWNlIjoiY2hvbmsifQ=="
 
-let file = ContentHash.fromEntry('video/mp4', readFileSync('chonk.mp4'));
+let file = Chash.from(readFileSync('chonk.mp4'), 'video/mp4');
 ```
 
 ### Record
@@ -64,20 +72,19 @@ let vitalik = Record.from({
     avatar: 'eip155:1/erc1155:0xb32979486938aa9694bfc898f35dbed459f44424/10063',
     '#ipfs': 'k2jmtxrxbr58aa3716vvr99qallufj3qae595op83p37jod4exujup32',
     '#pubkey': {x: 1, y: 2},
-    '#name': 'vitalik.eth', // reverse name
+    '#name': 'vitalik.eth',
 });
 
 // supports all standard resolver functions
 let name = rec.text('name'); // "Vitalik"
 let addr60 = rec.addr(60); // Uint8Array(20)
 let hash = rec.contenthash(); // Uint8Array(38)
+let pubkey = rec.pubkey(); // UintArray(64)
+let name = rec.name(); // "vitalik.eth"
 
-// record is just a Map()
-vitalik.get('name'); // "Vitalik"
-vitalik.get(60); // Address
-vitalik.get(Record.CONTENTHASH); // Contenthash
-vitalik.get(Record.PUBKEY); // Pubkey
-vitalik.get(Record.NAME); // "vitalik.eth"
+rec.getAddress(60); // Address()
+rec.getChash(); // Chash()
+rec.getPubkey(); // Pubkey()
 ```
 
 ### Node
@@ -89,17 +96,18 @@ import {Node} from '@resolverworks/enson';
 let node = Node.root();
 
 // create some subdomains, store a Record in a Node (eg. a Resolver)
-node.create('vitalik.raffy.eth').record = vitalik;
+node.create('vitalik.raffy.eth').record = rec;
 
 // import record from JSON at an existing node
-node.find('raffy.eth').importJSON({
+// (same as .record = Record.from({...})
+node.find('raffy.eth').import({
     name: 'Raffy',
     $eth: '0x51050ec063d393217B436747617aD1C2285Aeeee'
 });
 
 // import some subdomains
 // "." is the parent node record and indicates that keys are subdomains
-root.find('eth').importJSON({
+root.find('eth').import({
     '.':    { name: 'Ether',  $eth: '0x0000000000000000000000000000000000000000' }, // eth
     slobo:  { name: 'Alex',   $eth: '0x0000000000000000000000000000000000000001' }, // slobo.eth
     darian: { name: 'Darian', $eth: '0x0000000000000000000000000000000000000002' }  // darian.eth
@@ -110,9 +118,9 @@ root.flat() // list of nodes
 // create reverse nodes
 let rev = root.create('addr.reverse');
 root.scan(node => {
-    let eth = node.record?.get(60);
+    let eth = node.record?.getAddress(60);
     if (eth) {
-        rev.create(eth.toString().slice(2)).record = Record.from({
+        rev.create(eth.toPhex().slice(2)).record = Record.from({
             [Record.NAME]: node.name
         });	
     }

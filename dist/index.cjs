@@ -165,7 +165,7 @@ class Coin {
 		} else if (name.startsWith(PREFIX_UNKNOWN)) {
 			type = BigInt(name.slice(PREFIX_UNKNOWN.length));
 		} else {
-			type = addressEncoder.coinNameToTypeMap[name];
+			type = addressEncoder.coinNameToTypeMap[name.toLowerCase()];
 			if (!is_number(type)) throw error_with(`unknown coin: ${name}`, {name});
 		}
 		return this.fromType(type);
