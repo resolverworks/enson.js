@@ -1,5 +1,7 @@
 import {error_with} from './utils.js';
 import {Record} from './Record.js';
+import {keccak_256} from '@noble/hashes/sha3';
+import {ens_normalize, ens_beautify} from '@adraffy/ens-normalize';
 
 const LABEL_SELF = '.';
 
@@ -8,14 +10,31 @@ function split(s) {
 }
 
 export class Node extends Map {
-	static root(name) {
-		return new this(`[${name || 'root'}]`);
+	static create(name) {
+		return this.root().create(name);
+	}
+	static root(tag) {
+		return new this(`[${tag || 'root'}]`);
 	}
 	constructor(label, parent) {
 		super();
 		this.label = label;
 		this.parent = parent || undefined;
 		this.record = null;
+	}
+	get labelhash() {
+		// note: root labelhash is undefined
+		return this.parent ? keccak_256(this.label) : new Uint8Array(32);
+	}
+	get namehash() {
+		return this.path().reduceRight((v, x) => {
+			v.set(x.labelhash, 32);
+			v.set(keccak_256(v), 0);
+			return v;
+		}, new Uint8Array(64)).slice(0, 32);
+	}
+	get prettyName() {
+		return ens_beautify(this.name);
 	}
 	get name() {
 		if (!this.parent) return '';
@@ -28,7 +47,18 @@ export class Node extends Map {
 		for (let x = this; x.parent; x = x.parent) ++n;
 		return n;
 	}
-	get nodes() {
+	get root() {
+		let x = this;
+		while (x.parent) x = x.parent;
+		return x;
+	}
+	path(inc_root) {
+		// raffy.eth => [raffy.eth, eth, <root>]
+		let v = [];
+		for (let x = this; inc_root ? x : x.parent; x = x.parent) v.push(x);
+		return v;
+	}
+	get nodeCount() {
 		let n = 0;
 		this.scan(() => ++n);
 		return n;
@@ -44,15 +74,18 @@ export class Node extends Map {
 	}
 	// gets or creates a subnode of this node
 	child(label) {
+		if (!label) throw new Error('empty label');
+		label = ens_normalize(label);
+		if (label.includes('.')) throw error_with('expected single label', {label});
 		let node = this.get(label);
 		if (!node) {
-			if (!label) throw new Error('empty label');
 			node = new Node(label, this);
 			this.set(label, node);
 		}
 		return node;
 	}
 	import(obj) {
+		// TODO should this support arrays?
 		try {
 			if (typeof obj !== 'object' || Array.isArray(obj)) throw new Error('expected object');
 			let record = obj[LABEL_SELF];
@@ -68,7 +101,7 @@ export class Node extends Map {
 				}
 			}
 		} catch (err) {
-			throw error_with(`Importing "${this.name}": ${err.message}`, {json: obj}, err);
+			throw error_with(`import "${this.name}": ${err.message}`, {json: obj}, err);
 		}
 	}
 	toJSON() {

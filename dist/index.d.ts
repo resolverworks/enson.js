@@ -144,6 +144,7 @@ export class Record {
 }
 
 export class Node extends Map {
+	static create(name: string): Node;
 	static root(name?: string): Node;
 	constructor(label: string, parent?: Node);
 
@@ -151,9 +152,16 @@ export class Node extends Map {
 	readonly parent: Node;
 	record?: Record;
 
+	get labelhash(): Uint8Array;
+	get namehash(): Uint8Array;
+
+	get prettyName(): string;
 	get name(): string;
+	get nodeCount(): number;
+
+	get root(): number;
 	get depth(): number;
-	get nodes(): number;
+	path(includeRoot?: boolean): Node[];
 
 	find(name: string): Node | undefined;
 	create(name: string): Node;

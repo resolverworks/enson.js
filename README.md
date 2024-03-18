@@ -4,8 +4,8 @@
 
  `npm i @resolverworks/enson`
 
-* see [**types**](./dist/index.d.ts) / check [examples](./examples/) / uses [ensdomains/**address-encoder**](https://github.com/ensdomains/address-encoder/)
-* (7) core classes: [Coin](./src/Coin.js),  [Address](./src/Address.js), [ContentHash](./src/Record.js), [Pubkey](./src/Record.js), [Record](./src/Record.js), [Profile](./src/Record.js), [Node](./src/Record.js) 
+* see [**types**](./dist/index.d.ts) / check [examples](./test/examples/) / uses [ensdomains/**address-encoder**](https://github.com/ensdomains/address-encoder/)
+* (7) core classes: [Coin](./src/Coin.js), [Address](./src/Address.js), [Chash](./src/Chash.js), [Pubkey](./src/Pubkey.js), [Record & Profile](./src/Record.js), [Node](./src/Node.js) 
 * works with [resolverworks/**ezccip.js**](https://github.com/resolverworks/ezccip.js)
 * used by [resolverworks/**TheOffchainGateway.js**](https://github.com/resolverworks/TheOffchainGateway.js)
 
@@ -92,6 +92,8 @@ vitalik.getPubkey(); // Pubkey()
 
 ```js
 import {Record} from '@resolverworks/enson';
+
+let profile0 = Profile.ENS(); // default ENS profile
 
 let profile = Profile.from(vitalik);
 // Profile {

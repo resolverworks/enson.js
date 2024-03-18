@@ -15,5 +15,6 @@ dump(Pubkey.from({x: 1, y: 2}));
 dump(Pubkey.from({x: new Uint8Array(32), y: 2}));
 
 let a = new Pubkey();
-a.x = 1337;
-console.log(a.toPhex());
+a.x = 0x1337;
+a.y = 69420n;
+dump(a);

@@ -10,15 +10,13 @@ raffy.import({
 	[Record.PUBKEY]: {x: 1, y: 2},
 });
 
-console.log(raffy.toJSON());
-
 root.find('eth').import({
 	'.':    { name: 'Ether',  $eth: '0x0000000000000000000000000000000000000000' }, // eth
 	slobo:  { name: 'Alex',   $eth: '0x0000000000000000000000000000000000000001' }, // slobo.eth
 	darian: { name: 'Darian', $eth: '0x0000000000000000000000000000000000000002' }  // darian.eth
 });
 
-console.log(root.nodes, root.flat().length);
+console.log(root.nodeCount, root.flat().length);
 console.log(root.collect(x => x.name));
 
 // create reverse nodes
