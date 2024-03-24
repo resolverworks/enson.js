@@ -488,7 +488,7 @@ const SCHEME_MAP = new Map(SPECS.filter(x => x.scheme).map(x => [x.scheme, x]));
 class Chash {
 	static from(x, hint) {
 		if (x instanceof Chash) {
-			return new this(x.bytes.slice());
+			return new this(x.bytes.slice()); // copy
 		}
 		if (hint) {
 			let spec = SCHEME_MAP.get(hint);
@@ -706,13 +706,14 @@ class Record {
 		return r;
 	}
 	constructor() {
-		this._texts = new Map();
-		this._addrs = new Map();
-		this._chash = undefined;
+		this._texts  = new Map();
+		this._addrs  = new Map();
+		this._chash  = undefined;
 		this._pubkey = undefined;
+		this._name   = undefined;
 	}
 	get size() {
-		return this._texts.size + this._addrs.size + (this._chash?1:0) + (this._pubkey?1:0);
+		return this._texts.size + this._addrs.size + (this._chash?1:0) + (this._pubkey?1:0) + (this._name?1:0);
 	}
 	import(xs, silent) {
 		if (xs instanceof Record) { // copy
@@ -746,6 +747,9 @@ class Record {
 		}
 		this._name = x || undefined;
 	}
+	getTexts() {
+		return [...this._texts];
+	}
 	setText(key, value) {
 		if (!is_string(key) || (value && !is_string(value))) {
 			throw error_with('expected key', {key, value})
@@ -754,6 +758,9 @@ class Record {
 		} else {
 			this._texts.delete(key);
 		}
+	}
+	getAddresses() {
+		return Array.from(this._addrs, ([k, x]) => new Address(Coin.fromType(k), x));
 	}
 	getAddress(x) { 
 		let coin = Coin.from(x);
@@ -795,9 +802,8 @@ class Record {
 	}
 	_entries(fn) {
 		let m = [...this._texts].map(([k, x]) => [k, fn(x), SEL_TEXT]);
-		for (let [k, x] of this._addrs) {
-			let coin = Coin.fromType(k);
-			m.push([PREFIX_COIN + coin.name, fn(new Address(coin, x)), SEL_ADDR]);
+		for (let a of this.getAddresses()) {
+			m.push([PREFIX_COIN + a.coin.name, fn(a), SEL_ADDR]);
 		}
 		let chash = this.getChash();
 		if (chash) {
@@ -807,8 +813,9 @@ class Record {
 		if (pubkey) {
 			m.push([PREFIX_PUBKEY, fn(pubkey), SEL_PUBKEY]);
 		}
-		if (this._name) {
-			m.push([PREFIX_NAME, fn(this._name), SEL_NAME]);
+		let {_name} = this;
+		if (_name) {
+			m.push([PREFIX_NAME, fn(_name), SEL_NAME]);
 		}
 		return m;
 	}
@@ -834,8 +841,9 @@ class Record {
 		if (pubkey) {
 			m.push([PREFIX_PUBKEY, hr ? pubkey.toJSON() : pubkey.toPhex()]);
 		}
-		if (this._name) {
-			m.push([PREFIX_NAME, this._name]);
+		let {_name} = this;
+		if (_name) {
+			m.push([PREFIX_NAME, _name]);
 		}
 		return m;
 	}
@@ -897,9 +905,9 @@ class Record {
 	}
 	// ezccip interface
 	text(key)     { return this._texts.get(key); }
-	addr(type)    { return this._texts.get(Coin.type(type))?.bytes; }
-	contenthash() { return this._chash?.bytes; }
-	pubkey()      { return this._pubkey?.bytes; }
+	addr(type)    { return this._addrs.get(Coin.type(type)); }
+	contenthash() { return this._chash; }
+	pubkey()      { return this._pubkey; }
 	name()        { return this._name; }
 }
 for (let x of [PREFIX_CHASH, PREFIX_PUBKEY, PREFIX_NAME]) {
@@ -952,31 +960,22 @@ class Profile {
 	}
 	import(x) {
 		if (x instanceof Record) {
-			for (let k of x._texts.keys()) {
-				if (is_string(k)) {
-					this.texts.add(k);
-				} else {
-					this.coins.add(k);
-				}
-			}
-			this.chash  = !!x._chash;
-			this.pubkey = !!x._pubkey;
-			this.name   = !!x._name;
+			for (let k of x._texts.keys()) this.texts.add(k);
+			for (let k of x._addrs.keys()) this.coins.add(k);
+			if (x._chash)  this.chash = true;
+			if (x._pubkey) this.pubkey = true;
+			if (x._name)   this.name = true;
 		} else if (x instanceof Profile) {
-			x.texts.forEach(y => this.texts.add(y));
-			x.coins.forEach(y => this.coins.add(y));
+			for (let k of x.texts) this.texts.add(k);
+			for (let k of x.coins) this.coins.add(k);
 			this.chash  = x.chash;
 			this.pubkey = x.pubkey;
 			this.name   = x.name;
 			this.addr0  = x.addr0;
 		} else if (x && typeof x === 'object') {
 			// https://github.com/ensdomains/ensjs-v3/blob/7e01ad8579c08b453fc64b1972b764b6d884b774/packages/ensjs/src/functions/public/getRecords.ts#L33
-			if (Array.isArray(x.texts)) {
-				this.setText(x.texts);
-			}
-			if (Array.isArray(x.coins)) {
-				this.setText(x.coins);
-			}
+			if (Array.isArray(x.texts)) this.setText(x.texts);
+			if (Array.isArray(x.coins)) this.setCoin(x.coins);
 			this.chash = !!x.contentHash;
 			//this.abi = !!x.abi;
 		} else {

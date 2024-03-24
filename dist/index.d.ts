@@ -129,6 +129,8 @@ export class Record {
 	parseCalls(calls: ToData[], answers: ToData[]): void;
 	parseCall(call: ToData, answer: ToData): void;
 
+	getTexts(): [key: string, value: string][];
+	getAddresses(): Address[];
 	getAddress(query: CoinQuery): Address | undefined;
 	getChash(): Chash | undefined;
 	getPubkey(): Pubkey | undefined;
