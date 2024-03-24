@@ -232,7 +232,7 @@ const SCHEME_MAP = new Map(SPECS.filter(x => x.scheme).map(x => [x.scheme, x]));
 export class Chash {
 	static from(x, hint) {
 		if (x instanceof Chash) {
-			return new this(x.bytes.slice());
+			return new this(x.bytes.slice()); // copy
 		}
 		if (hint) {
 			let spec = SCHEME_MAP.get(hint);
