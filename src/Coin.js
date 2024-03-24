@@ -22,7 +22,6 @@ function eth_decode(s) {
 	return is_samecase_phex(s) && s.length == 42 ? hexToBytes(s.slice(2)) : eth_decode_checksum(s);
 }
 
-// TODO: should this be BigInt?
 export class Coin {
 	static get count() { init(); return COINS.size; }
 	static [Symbol.iterator]() { init(); return COINS.values(); }

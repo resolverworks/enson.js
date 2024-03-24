@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/png" href="./favicon.png">
+<title>ENSON</title>
+<style>
+.hide {
+	display: none !important;
+}
+body { 
+	margin: 3rem; 
+	background: #eee;
+}
+header {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: space-between;
+	gap: 4px 8px;
+}
+h1 {
+	margin: 0;
+}
+#github {
+	flex: 1;
+	text-align: right;
+	display: flex;
+	flex-direction: column;
+	white-space: pre;
+}
+</style>
+<script type="importmap">
+{
+	"imports": {
+		"@resolverworks/enson": "../dist/index.mjs",
+		"@adraffy/cid": "https://cdn.jsdelivr.net/npm/@adraffy/cid@0.0.6/+esm",
+		"@adraffy/ens-normalize": "https://cdn.jsdelivr.net/npm/@adraffy/ens-normalize@1.10.1/+esm",
+		"@ensdomains/address-encoder": "https://cdn.jsdelivr.net/npm/@ensdomains/address-encoder@1.1.1/+esm",
+		"@noble/hashes/utils": "https://cdn.jsdelivr.net/npm/@noble/hashes@1.4.0/esm/utils.js",
+		"@noble/hashes/sha3": "https://cdn.jsdelivr.net/npm/@noble/hashes@1.4.0/esm/sha3.js",
+		"@noble/hashes/crypto": "./noble-utils-shim.js"
+	}
+}
+</script>
+</head>
+<body>
+<header>
+	<h1>ENSON Tool</h1>
+	<div id="github">
+		<a href="https://github.com/resolverworks/enson.js">resolverworks/enson.js</a>
+	</div>
+</header>
+<table id="coin_table"></table>
+<script type="module">
+import {Coin, SPECS} from '@resolverworks/enson';
+
+let table = document.querySelector('#coin_table');
+for (let x of Coin) {
+	let tr = create('tr');
+	tr.append(create('td', {innerText: String(x.type)}));
+	tr.append(create('td', {innerText: x.chain}));
+	tr.append(create('td', {innerText: x.name}));
+	tr.append(create('td', {innerText: x.title}));
+	table.append(tr);
+}
+
+console.log(SPECS);
+
+function create(el, args, ...a) {
+	if (typeof el === 'string') el = document.createElement(el);
+	if (args) {
+		for (let [k, v] of Object.entries(args)) {
+			if (!v) continue;
+			if (v instanceof Function) {
+				el.addEventListener(k, v);
+			} else if (k === 'dataset') {
+				Object.assign(el.dataset, v);
+			} else if (k === 'className') {
+				for (let x of [v].flat(Infinity)) {
+					if (typeof x === 'string') {
+						el.classList.add(x);
+					} else if (x) {
+						Object.entries(x).forEach(([k, v]) => el.classList.toggle(k, !!v));
+					}
+				}
+			} else {
+				el[k] = v;
+			}
+		}
+	}
+	el.append(...a);
+	return el;	
+}
+</script>
+</body>
+</html>

@@ -126,6 +126,7 @@ export class Record {
 	setChash(...args: Parameters<typeof Chash.from>): void;
 	setPubkey(...args: Parameters<typeof Pubkey.from>): void;
 	setName(value?: string): void;
+	parseCalls(calls: Uint8Array[], answers: Uint8Array[]): void;
 
 	getAddress(query: CoinQuery): Address | undefined;
 	getChash(): Chash | undefined;
