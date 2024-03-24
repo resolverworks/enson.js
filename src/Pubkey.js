@@ -14,6 +14,9 @@ export class Pubkey {
 	}
 	static from(value) {
 		if (!value) return new this();
+		if (value instanceof this) {
+			return new this(value.bytes.slice()); // copy
+		}
 		try {
 			if (value instanceof Uint8Array) {
 				return new this(value);
@@ -30,7 +33,7 @@ export class Pubkey {
 	constructor(v) {
 		if (v) {
 			if (v instanceof Uint8Array && v.length == 64) {
-				this.bytes = v.slice();
+				this.bytes = v; // this is unsafe constructor
 			} else {
 				throw error_with('expected 64 bytes', {bytes: v});
 			}

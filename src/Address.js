@@ -4,6 +4,9 @@ import {Coin, ETH} from './Coin.js';
 export class Address {
  	static from(coin, value) {
 		if (value === undefined) { // eth shorthand
+			if (coin instanceof Address) {
+				return new this(coin.coin, coin.bytes.slice()); // copy
+			} 
 			value = coin;
 			coin = ETH;
 		} else {

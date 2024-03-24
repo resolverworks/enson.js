@@ -219,6 +219,9 @@ const ETH = Coin.fromType(TYPE_ETH);
 class Address {
  	static from(coin, value) {
 		if (value === undefined) { // eth shorthand
+			if (coin instanceof Address) {
+				return new this(coin.coin, coin.bytes.slice()); // copy
+			} 
 			value = coin;
 			coin = ETH;
 		} else {
@@ -484,6 +487,9 @@ const SCHEME_MAP = new Map(SPECS.filter(x => x.scheme).map(x => [x.scheme, x]));
 
 class Chash {
 	static from(x, hint) {
+		if (x instanceof Chash) {
+			return new this(x.bytes.slice());
+		}
 		if (hint) {
 			let spec = SCHEME_MAP.get(hint);
 			if (spec) {
@@ -623,6 +629,9 @@ class Pubkey {
 	}
 	static from(value) {
 		if (!value) return new this();
+		if (value instanceof this) {
+			return new this(value.bytes.slice()); // copy
+		}
 		try {
 			if (value instanceof Uint8Array) {
 				return new this(value);
@@ -639,7 +648,7 @@ class Pubkey {
 	constructor(v) {
 		if (v) {
 			if (v instanceof Uint8Array && v.length == 64) {
-				this.bytes = v.slice();
+				this.bytes = v; // this is unsafe constructor
 			} else {
 				throw error_with('expected 64 bytes', {bytes: v});
 			}
@@ -697,27 +706,39 @@ class Record {
 		return r;
 	}
 	constructor() {
-		this.map = new Map();
+		this._texts = new Map();
+		this._addrs = new Map();
 		this._chash = undefined;
 		this._pubkey = undefined;
 	}
 	get size() {
-		return this.map.size;
+		return this._texts.size + this._addrs.size + (this._chash?1:0) + (this._pubkey?1:0);
 	}
 	import(xs, silent) {
-		if (Array.isArray(xs)) { 
+		if (xs instanceof Record) { // copy
+			for (let [k, x] of xs._texts) this.set(k, x);
+			for (let [k, x] of xs._addrs) this.set(k, x.slice());
+			if (xs._chash)  this._chash  = xs._chash.slice();
+			if (xs._pubkey) this._pubkey = xs._pubkey.slice();
+		} else if (Array.isArray(xs)) { 
 			for (let [k, x] of xs) this.set(k, x, silent);
 		} else {
 			for (let [k, x] of Object.entries(xs)) this.set(k, x, silent);
 		}
 	}
-	getChash() { return this._chash; }
-	setChash(x, hint) {
-		this._chash = x ? x instanceof Chash ? x : Chash.from(x, hint) : undefined;
+	getChash() { 
+		let v = this._chash;
+		return v ? new Chash(v) : undefined;
 	}
-	getPubkey() { return this._pubkey; }
+	setChash(x, hint) {
+		this._chash = x ? Chash.from(x, hint).bytes : undefined;
+	}
+	getPubkey() { 
+		let v = this._pubkey; 
+		return v ? new Pubkey(v) : undefined;
+	}
 	setPubkey(x) {
-		this._pubkey = x ? x instanceof Pubkey ? x : Pubkey.from(x) : undefined;
+		this._pubkey = x ? Pubkey.from(x).bytes : undefined;
 	}
 	setName(x) {
 		if (x && !is_string(x)) {
@@ -729,20 +750,24 @@ class Record {
 		if (!is_string(key) || (value && !is_string(value))) {
 			throw error_with('expected key', {key, value})
 		} else if (value) {
-			this.map.set(key, value);
+			this._texts.set(key, value);
 		} else {
-			this.map.delete(key);
+			this._texts.delete(key);
 		}
 	}
-	getAddress(x) { return this.map.get(Coin.from(x).type); }
+	getAddress(x) { 
+		let coin = Coin.from(x);
+		let v = this._addrs.get(coin.type);
+		return v ? new Address(coin, v) : undefined;
+	}
 	setAddress(x, y) {
 		if (x instanceof Address) {
-			this.map.set(x.coin.type, x);
+			this._addrs.set(x.coin.type, x.bytes.slice());
 		} else if (y) {
 			let a = Address.from(x, y);
-			this.map.set(a.coin.type, a);
+			this._addrs.set(a.coin.type, a.bytes);
 		} else {
-			this.map.delete(Coin.from(x).type);
+			this._addrs.delete(Coin.from(x).type);
 		}
 	}
 	set(key, value, silent) {
@@ -769,45 +794,48 @@ class Record {
 		}
 	}
 	_entries(fn) {
-		let m = [...this.map].map(([k, x]) => {
-			if (is_string(k)) {
-				return [k, fn(x), SEL_TEXT];
-			} else {
-				return [PREFIX_COIN + x.coin.name, fn(x), SEL_ADDR];
-			}
-		});
-		let {_chash, _pubkey, _name} = this;
-		if (_chash)  m.push([PREFIX_CHASH,  fn(_chash),  SEL_CHASH ]);
-		if (_pubkey) m.push([PREFIX_PUBKEY, fn(_pubkey), SEL_PUBKEY]);
-		if (_name)   m.push([PREFIX_NAME,   fn(_name),   SEL_NAME  ]);
+		let m = [...this._texts].map(([k, x]) => [k, fn(x), SEL_TEXT]);
+		for (let [k, x] of this._addrs) {
+			let coin = Coin.fromType(k);
+			m.push([PREFIX_COIN + coin.name, fn(new Address(coin, x)), SEL_ADDR]);
+		}
+		let chash = this.getChash();
+		if (chash) {
+			m.push([PREFIX_CHASH, fn(chash), SEL_CHASH]);
+		}
+		let pubkey = this.getPubkey();
+		if (pubkey) {
+			m.push([PREFIX_PUBKEY, fn(pubkey), SEL_PUBKEY]);
+		}
+		if (this._name) {
+			m.push([PREFIX_NAME, fn(this._name), SEL_NAME]);
+		}
 		return m;
 	}
 	[Symbol.iterator]() {
 		return this._entries(x => x)[Symbol.iterator]();
 	}
 	toEntries(hr) {
-		let m = [];
-		for (let [k, x] of this.map) {
-			if (is_string(k)) {
-				m.push([k, x]);
-			} else {
-				m.push([PREFIX_COIN + x.coin.name, x.value]);
-			}
+		let m = [...this._texts];
+		for (let [k, x] of this._addrs) {
+			let coin = Coin.fromType(k);
+			m.push([PREFIX_COIN + coin.name, coin.format(x)]);
 		}
-		let {_chash, _pubkey, _name} = this;
-		if (_chash) {
+		let chash = this.getChash();
+		if (chash) {
 			if (hr) {
-				let [short, value] = _chash.toEntry();
+				let [short, value] = chash.toEntry();
 				m.push([short ? PREFIX_MAGIC + short : PREFIX_CHASH, value]);
 			} else {
-				m.push([PREFIX_CHASH, _chash.toPhex()]);
+				m.push([PREFIX_CHASH, chash.toPhex()]);
 			}
 		}
-		if (_pubkey) {
-			m.push([PREFIX_PUBKEY, hr ? _pubkey.toJSON() : _pubkey.toPhex()]);
+		let pubkey = this.getPubkey();
+		if (pubkey) {
+			m.push([PREFIX_PUBKEY, hr ? pubkey.toJSON() : pubkey.toPhex()]);
 		}
-		if (_name) {
-			m.push([PREFIX_NAME, _name]);
+		if (this._name) {
+			m.push([PREFIX_NAME, this._name]);
 		}
 		return m;
 	}
@@ -848,7 +876,7 @@ class Record {
 				}
 				case SEL_ADDR: {
 					let v = read_memory(answer, 0);
-					return this.setAddress(bigUintAt(calldata, 36), v.length && v);
+					return this.setAddress(bigUintAt(call, 36), v.length && v);
 				}
 				case SEL_CHASH: {
 					let v = read_memory(answer, 0);
@@ -868,8 +896,8 @@ class Record {
 		}
 	}
 	// ezccip interface
-	text(key)     { return this.map.get(key); }
-	addr(type)    { return this.map.get(Coin.type(type))?.bytes; }
+	text(key)     { return this._texts.get(key); }
+	addr(type)    { return this._texts.get(Coin.type(type))?.bytes; }
 	contenthash() { return this._chash?.bytes; }
 	pubkey()      { return this._pubkey?.bytes; }
 	name()        { return this._name; }
@@ -924,7 +952,7 @@ class Profile {
 	}
 	import(x) {
 		if (x instanceof Record) {
-			for (let k of x.map.keys()) {
+			for (let k of x._texts.keys()) {
 				if (is_string(k)) {
 					this.texts.add(k);
 				} else {

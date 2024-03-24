@@ -2,7 +2,7 @@ type ToBigInt = number | string | BigInt;
 type ToData = Uint8Array | number[] | string;
 
 export class Pubkey {
-	static from(value: ToData | {x: ToBigInt, y: ToBigInt}): Pubkey;
+	static from(value: Pubkey | ToData | {x: ToBigInt, y: ToBigInt}): Pubkey;
 	static fromXY(x: ToBigInt, y: ToBigInt): Pubkey;
 	constructor(v?: Uint8Array);
 	set x(i: ToBigInt);
@@ -34,7 +34,7 @@ export const Swarm: ChashSpec;
 export const Arweave: ChashSpec;
 
 export class Chash {
-	static from(value: ToData, hint?: string): Chash;
+	static from(value: Chash | ToData, hint?: string): Chash;
 	static fromParts(codec: number | ChashSpec, data: ToData): Chash;
 	static fromOnion(hash: ToData): Chash;
 	static fromBytes(raw: ToData): Chash;
@@ -73,7 +73,7 @@ export class Coin {
 }
 
 export class Address {
-	static from(value: ToData): Address;
+	static from(value: Address | ToData): Address;
 	static from(query: CoinQuery, value: ToData): Address;
 	readonly coin: Coin;
 	readonly bytes: Uint8Array;
@@ -115,7 +115,7 @@ export class Record {
 	static readonly PUBKEY: Symbol;
 	static readonly NAME: Symbol;
 
-	static from(records: ManyRecords): Record;
+	static from(records: Record | ManyRecords): Record;
 	get size(): number;
 	
 	set(key: any, value?: any): void;
@@ -126,7 +126,8 @@ export class Record {
 	setChash(...args: Parameters<typeof Chash.from>): void;
 	setPubkey(...args: Parameters<typeof Pubkey.from>): void;
 	setName(value?: string): void;
-	parseCalls(calls: Uint8Array[], answers: Uint8Array[]): void;
+	parseCalls(calls: ToData[], answers: ToData[]): void;
+	parseCall(call: ToData, answer: ToData): void;
 
 	getAddress(query: CoinQuery): Address | undefined;
 	getChash(): Chash | undefined;
@@ -175,7 +176,7 @@ export class Node extends Map {
 	print(): void;
 }
 
-// function error_with(message: string, options: Object, cause?: any): Error;
+export function error_with(message: string, options: Object, cause?: any): Error;
 // function is_number(x: any): boolean;
 // function is_string(x: any): boolean;
 // function maybe_phex(x: any): boolean;
