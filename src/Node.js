@@ -1,13 +1,9 @@
-import {error_with} from './utils.js';
+import {error_with, namesplit, namehash} from './utils.js';
 import {Record} from './Record.js';
 import {keccak_256} from '@noble/hashes/sha3';
 import {ens_normalize, ens_beautify} from '@adraffy/ens-normalize';
 
 const LABEL_SELF = '.';
-
-function split(s) {
-	return s ? s.split('.') : [];
-}
 
 export class Node extends Map {
 	static create(name) {
@@ -27,20 +23,13 @@ export class Node extends Map {
 		return this.parent ? keccak_256(this.label) : new Uint8Array(32);
 	}
 	get namehash() {
-		return this.path().reduceRight((v, x) => {
-			v.set(x.labelhash, 32);
-			v.set(keccak_256(v), 0);
-			return v;
-		}, new Uint8Array(64)).slice(0, 32);
+		return namehash(this.path().map(x => x.label));
 	}
 	get prettyName() {
 		return ens_beautify(this.name);
 	}
 	get name() {
-		if (!this.parent) return '';
-		let v = [];
-		for (let x = this; x.parent; x = x.parent) v.push(x.label);
-		return v.join('.');
+		return this.path().map(x => x.label).join('.');
 	}
 	get depth() {
 		let n = 0;
@@ -53,7 +42,7 @@ export class Node extends Map {
 		return x;
 	}
 	path(inc_root) {
-		// raffy.eth => [raffy.eth, eth, <root>]
+		// raffy.eth => [raffy.eth, eth, <root>?]
 		let v = [];
 		for (let x = this; inc_root ? x : x.parent; x = x.parent) v.push(x);
 		return v;
@@ -66,11 +55,11 @@ export class Node extends Map {
 	// get node "a" from "a.b.c" or null
 	// find("") is identity
 	find(name) {
-		return split(name).reduceRight((x, s) => x?.get(s), this);
+		return namesplit(name).reduceRight((x, s) => x?.get(s), this);
 	}
 	// ensures the nodes for "a.b.c" exist and returns "a"
 	create(name) {
-		return split(name).reduceRight((x, s) => x.child(s), this);
+		return namesplit(name).reduceRight((x, s) => x.child(s), this);
 	}
 	// gets or creates a subnode of this node
 	child(label) {

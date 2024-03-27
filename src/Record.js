@@ -2,8 +2,7 @@ import {Coin} from './Coin.js';
 import {Address} from './Address.js';
 import {Chash} from './Chash.js';
 import {Pubkey} from './Pubkey.js';
-import {error_with, is_string, bytes32_from, utf8_from_bytes, bigUintAt, bytes_from} from './utils.js';
-import {keccak_256} from '@noble/hashes/sha3';
+import {error_with, is_string, bytes32_from, utf8_from_bytes, bigUintAt, bytes_from, namehash} from './utils.js';
 import {createView, utf8ToBytes} from '@noble/hashes/utils';
 
 const SEL_TEXT   = 0x59d1d43c; // https://adraffy.github.io/keccak.js/test/demo.html#algo=evm&s=text%28bytes32%2Cstring%29&escape=1&encoding=utf8
@@ -243,9 +242,11 @@ export class Profile {
 		// https://github.com/ensdomains/ens-app-v3/blob/main/src/constants/supportedAddresses.ts
 		let p = new Profile();
 		p.setText([
+			'name',
 			'email',
 			'url',
 			'avatar',
+			'location',
 			'description',
 			'notice',
 			'keywords',
@@ -254,7 +255,6 @@ export class Profile {
 			'com.reddit',
 			'com.twitter',
 			'org.telegram',
-			'eth.ens.delegate'
 		]);
 		p.setCoin(['eth', 'btc', 'bnb', 'doge', 'ltc', 'dot', 'sol']);
 		p.chash = true;
@@ -338,7 +338,7 @@ export class Profile {
 		}
 	}
 	makeCallsForName(name) {
-		return this.makeCalls(keccak_256(name));
+		return this.makeCalls(namehash(name));
 	}
 	makeCalls(node = 0) {
 		node = bytes32_from(node);

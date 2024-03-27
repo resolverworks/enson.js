@@ -179,6 +179,7 @@ export class Node extends Map {
 }
 
 export function error_with(message: string, options: Object, cause?: any): Error;
+export function namehash(name: string | string[]): Uint8Array;
 // function is_number(x: any): boolean;
 // function is_string(x: any): boolean;
 // function maybe_phex(x: any): boolean;

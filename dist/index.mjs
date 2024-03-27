@@ -1,8 +1,23 @@
 import { getCoderByCoinType, coinTypeToNameMap, coinNameToTypeMap } from '@ensdomains/address-encoder';
 import { hexToBytes, bytesToHex, utf8ToBytes, toBytes, createView } from '@noble/hashes/utils';
-import { Base64URL, Base32, CID, uvarint, Base64 } from '@adraffy/cid';
 import { keccak_256 } from '@noble/hashes/sha3';
+import { Base64URL, Base32, CID, uvarint, Base64 } from '@adraffy/cid';
 import { ens_beautify, ens_normalize } from '@adraffy/ens-normalize';
+
+function namesplit(s) {
+	return s ? s.split('.') : [];
+}
+
+function namehash(labels) {
+	if (!Array.isArray(labels)) {
+		labels = namesplit(labels);
+	}
+	return labels.reduceRight((v, x) => {
+		v.set(keccak_256(x), 32);
+		v.set(keccak_256(v), 0);
+		return v;
+	}, new Uint8Array(64)).slice(0, 32);
+}
 
 function error_with(message, options, cause) {
 	let error;
@@ -63,12 +78,12 @@ function bytes32_from(x) {
 	return hexToBytes(BigInt(x).toString(16).padStart(64, '0').slice(-64));
 }
 
-function phex_from_bytes$1(v) {
+function phex_from_bytes(v) {
 	return '0x' + bytesToHex(v);
 }
 
 function bigUintAt(v, i) {
-	return BigInt(phex_from_bytes$1(v.subarray(i, i + 32)));
+	return BigInt(phex_from_bytes(v.subarray(i, i + 32)));
 }
 
 function array_equals(a, b) {
@@ -249,7 +264,7 @@ class Address {
 		return {coin: coin.toObject(), value, bytes};
 	}
 	toPhex() {
-		return phex_from_bytes$1(this.bytes);
+		return phex_from_bytes(this.bytes);
 	}
 	toString() {
 		return this.value;
@@ -596,7 +611,7 @@ class Chash {
 		return spec.gateway?.(spec.toHash(v), spec, v) ?? spec.toURL(v);
 	}
 	toPhex() {
-		return phex_from_bytes$1(this.bytes); 
+		return phex_from_bytes(this.bytes); 
 	}
 	toJSON() { 
 		return this.toURL(); 
@@ -669,7 +684,7 @@ class Pubkey {
 		return {x, y, address};
 	}
 	toPhex() {
-		return phex_from_bytes$1(this.bytes);
+		return phex_from_bytes(this.bytes);
 	}
 	toJSON() {
 		let v = this.bytes;
@@ -921,9 +936,11 @@ class Profile {
 		// https://github.com/ensdomains/ens-app-v3/blob/main/src/constants/supportedAddresses.ts
 		let p = new Profile();
 		p.setText([
+			'name',
 			'email',
 			'url',
 			'avatar',
+			'location',
 			'description',
 			'notice',
 			'keywords',
@@ -932,7 +949,6 @@ class Profile {
 			'com.reddit',
 			'com.twitter',
 			'org.telegram',
-			'eth.ens.delegate'
 		]);
 		p.setCoin(['eth', 'btc', 'bnb', 'doge', 'ltc', 'dot', 'sol']);
 		p.chash = true;
@@ -1016,7 +1032,7 @@ class Profile {
 		}
 	}
 	makeCallsForName(name) {
-		return this.makeCalls(keccak_256(name));
+		return this.makeCalls(namehash(name));
 	}
 	makeCalls(node = 0) {
 		node = bytes32_from(node);
@@ -1074,10 +1090,6 @@ function read_memory(v, pos) {
 
 const LABEL_SELF = '.';
 
-function split(s) {
-	return s ? s.split('.') : [];
-}
-
 class Node extends Map {
 	static create(name) {
 		return this.root().create(name);
@@ -1096,20 +1108,13 @@ class Node extends Map {
 		return this.parent ? keccak_256(this.label) : new Uint8Array(32);
 	}
 	get namehash() {
-		return this.path().reduceRight((v, x) => {
-			v.set(x.labelhash, 32);
-			v.set(keccak_256(v), 0);
-			return v;
-		}, new Uint8Array(64)).slice(0, 32);
+		return namehash(this.path().map(x => x.label));
 	}
 	get prettyName() {
 		return ens_beautify(this.name);
 	}
 	get name() {
-		if (!this.parent) return '';
-		let v = [];
-		for (let x = this; x.parent; x = x.parent) v.push(x.label);
-		return v.join('.');
+		return this.path().map(x => x.label).join('.');
 	}
 	get depth() {
 		let n = 0;
@@ -1122,7 +1127,7 @@ class Node extends Map {
 		return x;
 	}
 	path(inc_root) {
-		// raffy.eth => [raffy.eth, eth, <root>]
+		// raffy.eth => [raffy.eth, eth, <root>?]
 		let v = [];
 		for (let x = this; inc_root ? x : x.parent; x = x.parent) v.push(x);
 		return v;
@@ -1135,11 +1140,11 @@ class Node extends Map {
 	// get node "a" from "a.b.c" or null
 	// find("") is identity
 	find(name) {
-		return split(name).reduceRight((x, s) => x?.get(s), this);
+		return namesplit(name).reduceRight((x, s) => x?.get(s), this);
 	}
 	// ensures the nodes for "a.b.c" exist and returns "a"
 	create(name) {
-		return split(name).reduceRight((x, s) => x.child(s), this);
+		return namesplit(name).reduceRight((x, s) => x.child(s), this);
 	}
 	// gets or creates a subnode of this node
 	child(label) {
@@ -1213,4 +1218,4 @@ class Node extends Map {
 	}
 }
 
-export { Address, Arweave, Chash, Coin, DataURL, ETH, GenericURL, IPFS, IPNS, Node, Onion, Profile, Pubkey, Record, SPECS, Swarm, UnknownCoin, UnnamedCoin, UnnamedEVMCoin, array_equals, bigUintAt, bytes32_from, bytes_from, error_with, is_bigint, is_number, is_samecase_phex, is_string, phex_from_bytes$1 as phex_from_bytes, try_coerce_bytes, utf8_from_bytes };
+export { Address, Arweave, Chash, Coin, DataURL, ETH, GenericURL, IPFS, IPNS, Node, Onion, Profile, Pubkey, Record, SPECS, Swarm, UnknownCoin, UnnamedCoin, UnnamedEVMCoin, array_equals, bigUintAt, bytes32_from, bytes_from, error_with, is_bigint, is_number, is_samecase_phex, is_string, namehash, namesplit, phex_from_bytes, try_coerce_bytes, utf8_from_bytes };

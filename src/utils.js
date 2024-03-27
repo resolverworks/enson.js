@@ -1,4 +1,20 @@
 import {bytesToHex, hexToBytes} from '@noble/hashes/utils';
+import {keccak_256} from '@noble/hashes/sha3';
+
+export function namesplit(s) {
+	return s ? s.split('.') : [];
+}
+
+export function namehash(labels) {
+	if (!Array.isArray(labels)) {
+		labels = namesplit(labels);
+	}
+	return labels.reduceRight((v, x) => {
+		v.set(keccak_256(x), 32);
+		v.set(keccak_256(v), 0);
+		return v;
+	}, new Uint8Array(64)).slice(0, 32);
+}
 
 export function error_with(message, options, cause) {
 	let error;

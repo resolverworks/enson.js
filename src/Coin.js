@@ -1,5 +1,5 @@
 import {getCoderByCoinType, coinNameToTypeMap, coinTypeToNameMap} from '@ensdomains/address-encoder';
-import {error_with, is_bigint, is_number, is_string, is_samecase_phex} from './utils.js';
+import {error_with, is_bigint, is_number, is_string, is_samecase_phex, phex_from_bytes} from './utils.js';
 import {hexToBytes} from '@noble/hashes/utils';
 
 const COINS = new Map();

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {Node, phex_from_bytes} from '../src/index.js';
+import {Node, phex_from_bytes, namehash} from '../src/index.js';
 
 test('Node', async T => {
 	await T.test('normalized', () => {
@@ -10,7 +10,11 @@ test('Node', async T => {
 		assert.equal(Node.create('0⃣').prettyName, '0️⃣');
 	});
 	await T.test('namehash', () => {
-		assert.equal(phex_from_bytes(Node.create('raffy.eth').namehash), '0x9c8b7ac505c9f0161bbbd04437fce8c630a0886e1ffea00078e298f063a8a5df');
+		const name = 'raffy.eth';
+		const hash = '0x9c8b7ac505c9f0161bbbd04437fce8c630a0886e1ffea00078e298f063a8a5df';
+		assert.equal(phex_from_bytes(Node.create(name).namehash), hash);
+		assert.equal(phex_from_bytes(namehash(name)), hash);
+		assert.equal(phex_from_bytes(namehash(name.split('.'))), hash);
 	});
 	await T.test('labelhash', () => {
 		assert.equal(phex_from_bytes(Node.create('eth').labelhash), '0x4f5b812789fc606be1b3b16908db13fc7a9adf7ca72641f84d75b47069d3d7f0');
