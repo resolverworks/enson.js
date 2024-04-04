@@ -70,6 +70,7 @@ export class Coin {
 	toObject(): {type: bigint, name: string, title: string, chain: number | undefined};
 	parse(s: string): Uint8Array;
 	format(v: Uint8Array): string;
+	assertValid(v: Uint8Array): void;
 }
 
 export class Address {

@@ -248,7 +248,7 @@ export class Chash {
 			}
 			if (hint === KEY_ONION) {
 				return this.fromOnion(x);
-			} 
+			}
 		}
 		let v = try_coerce_bytes(x);
 		if (v !== x) {
@@ -280,14 +280,19 @@ export class Chash {
 			let spec = Onion;
 			let {pubkey} = spec.toObject(data);
 			let expect = spec.fromPubkey(pubkey);
-			if (!array_equals(data, expect)) throw error_with('invalid checksum', {hash, data, expect});
+			if (!array_equals(data, expect)) throw error_with('invalid onion checksum', {hash, data, expect});
 			return this.fromParts(spec, data);
 		}
-		throw error_with('invalid hash', {hash, data});
+		throw error_with('invalid onion hash', {hash, data});
 	}
 	static fromBytes(x) {
 		let bytes = bytes_from(x, false);
-		let [codec, pos] = uvarint.read(bytes);
+		let codec, pos;
+		try {
+			[codec, pos] = uvarint.read(bytes);
+		} catch (err) {
+			throw error_with('invalid contenthash', {bytes});
+		}
 		let spec = SPECS.find(x => x.codec === codec);
 		if (!spec) throw error_with('unknown contenthash codec', {codec, bytes});
 		return this.fromURL(spec.toURL(bytes.subarray(pos)));

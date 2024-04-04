@@ -25,23 +25,49 @@ test('Coin', async T => {
 });
 
 test('Address', async T => {
-	let known = [
+	let coins = [
 		{
 			coin: Coin.from('eth'),
-			input: '0x51050ec063d393217B436747617aD1C2285Aeeee',
-			bytes: bytes_from('0x51050ec063d393217B436747617aD1C2285Aeeee')
+			valid: {
+				input: '0x51050ec063d393217B436747617aD1C2285Aeeee',
+				bytes: bytes_from('0x51050ec063d393217B436747617aD1C2285Aeeee')
+			},
+			invalid: [
+				new Uint8Array(0),
+				new Uint8Array(19),
+				new Uint8Array(21),
+				'0y', 
+				'0x', 
+				'0x51050ec063d393217B436747617aD1C2285Aee',
+				'0x51050ec063d393217B436747617aD1C2285Aeee',
+			]
 		},
 		{
 			coin: Coin.from('btc'),
-			input: 'bc1q9ejpfyp7fvjdq5fjx5hhrd6uzevn9gupxd98aq',
-			bytes: bytes_from('0x00142e6414903e4b24d05132352f71b75c165932a381'),
+			valid: {
+				input: 'bc1q9ejpfyp7fvjdq5fjx5hhrd6uzevn9gupxd98aq',
+				bytes: bytes_from('0x00142e6414903e4b24d05132352f71b75c165932a381'),
+			},
+			invalid: [
+				new Uint8Array(0),
+				new Uint8Array(5),
+				'bc1', 
+				'bc2'
+			],
 		}
 	];
-	for (let x of known) {
-		await T.test(title(x.coin), async TT => {
-			await TT.test('from string', () => assert.deepEqual(Address.from(x.coin, x.input).bytes, x.bytes));
-			await TT.test('from bytes', () => assert.equal(Address.from(x.coin.type, x.bytes).value, x.input));
+	for (let {coin, valid, invalid} of coins) {
+		await T.test(title(coin), async TT => {
+			await TT.test('from string', () => assert.deepEqual(Address.from(coin, valid.input).bytes, valid.bytes));
+			await TT.test('from bytes', () => assert.equal(Address.from(coin, valid.bytes).value, valid.input));
+			await TT.test('invalid', () => {
+				for (let x of invalid) {
+					if (x instanceof Uint8Array) {
+						assert.throws(() => coin.assertValid(x));
+					}
+					assert.throws(() => Address.from(coin, x));
+				}
+			});
 		});
-
 	}
 });

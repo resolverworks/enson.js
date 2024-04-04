@@ -41,7 +41,7 @@ function is_bigint(x) {
 }
 
 function is_samecase_phex(s) {
-	return is_string(s) && /^0x([0-9A-F]+|[0-9a-f]+)/i.test(s);
+	return is_string(s) && /^0x([0-9A-F]*|[0-9a-f]*)/i.test(s);
 }
 
 function bytes_from(x, copy = true) {
@@ -90,7 +90,7 @@ function array_equals(a, b) {
 	if (a === b) return true;
 	let n = a.length;
 	let c = b.length === n;
-	for (let i = 0; !c && i < n; i++) c = a[i] === b[i];
+	for (let i = 0; c && i < n; i++) c = a[i] === b[i];
 	return c;
 }
 
@@ -205,6 +205,11 @@ class Coin {
 		let {type, name, title, chain} = this;
 		return {type, name, title, chain};
 	}
+	assertValid(v) {
+		if (!array_equals(this.parse(this.format(v)), v)) {
+			throw new Error('roundtrip failed');
+		}
+	}
 }
 
 class UnnamedCoin extends Coin {
@@ -221,8 +226,9 @@ class UnnamedEVMCoin extends UnnamedCoin {
 class UnknownCoin extends UnnamedCoin {
 	get name()  { return PREFIX_UNKNOWN + this.type; }
 	get title() { return 'Unknown Coin'; }
+	assertValid(v) { return v.length > 0; }
 	parse(s)    { throw error_with('unknown parser', {coin: this, value: s}); }
-	format(v)   { return `{${phex_from_bytes(v)}}`; }
+	format(v)   { return `{${phex_from_bytes(v)}}`; } // TODO: decide what to do here
 	toObject() {
 		let {type, title} = this;
 		return {type, title};
@@ -242,14 +248,19 @@ class Address {
 		} else {
 			coin = Coin.from(coin);
 		}
-		let v = try_coerce_bytes(value);
-		if (v !== value) {
-			coin.format(v); // validate
+		try {
+			let v = try_coerce_bytes(value);
+			if (v === value) {
+				if (!is_string(value)) {
+					throw new Error('unknown address format');
+				}
+				v = coin.parse(value);
+			}
+			coin.assertValid(v);
 			return new this(coin, v);
-		} else if (is_string(value)) {
-			return new this(coin, coin.parse(value));
+		} catch (err) {
+			throw new error_with('invalid address', {coin, value}, err);
 		}
-		throw new error_with('unknown address format', {coin, value});
 	}
 	constructor(coin, bytes) {
 		this.coin = coin;
@@ -519,7 +530,7 @@ class Chash {
 			}
 			if (hint === KEY_ONION) {
 				return this.fromOnion(x);
-			} 
+			}
 		}
 		let v = try_coerce_bytes(x);
 		if (v !== x) {
@@ -551,14 +562,19 @@ class Chash {
 			let spec = Onion;
 			let {pubkey} = spec.toObject(data);
 			let expect = spec.fromPubkey(pubkey);
-			if (!array_equals(data, expect)) throw error_with('invalid checksum', {hash, data, expect});
+			if (!array_equals(data, expect)) throw error_with('invalid onion checksum', {hash, data, expect});
 			return this.fromParts(spec, data);
 		}
-		throw error_with('invalid hash', {hash, data});
+		throw error_with('invalid onion hash', {hash, data});
 	}
 	static fromBytes(x) {
 		let bytes = bytes_from(x, false);
-		let [codec, pos] = uvarint.read(bytes);
+		let codec, pos;
+		try {
+			[codec, pos] = uvarint.read(bytes);
+		} catch (err) {
+			throw error_with('invalid contenthash', {bytes});
+		}
 		let spec = SPECS.find(x => x.codec === codec);
 		if (!spec) throw error_with('unknown contenthash codec', {codec, bytes});
 		return this.fromURL(spec.toURL(bytes.subarray(pos)));
@@ -714,6 +730,11 @@ const PREFIX_NAME   = PREFIX_MAGIC + 'name';
 
 // TODO: add missing profiles, like ABI()
 
+function try_coerce_bytes_nonempty(x) {
+	let v = try_coerce_bytes(x);
+	if (x && (x === v || v.length)) return v;
+}
+
 class Record {	
 	static from(xs, silent) {
 		let r = new this();
@@ -736,6 +757,7 @@ class Record {
 			for (let [k, x] of xs._addrs) this.set(k, x.slice());
 			if (xs._chash)  this._chash  = xs._chash.slice();
 			if (xs._pubkey) this._pubkey = xs._pubkey.slice();
+			if (xs._name)   this._name   = xs._name;
 		} else if (Array.isArray(xs)) { 
 			for (let [k, x] of xs) this.set(k, x, silent);
 		} else {
@@ -747,18 +769,20 @@ class Record {
 		return v ? new Chash(v) : undefined;
 	}
 	setChash(x, hint) {
-		this._chash = x ? Chash.from(x, hint).bytes : undefined;
+		let v = try_coerce_bytes_nonempty(x);
+		this._chash = v ? Chash.from(v, hint).bytes : undefined;
 	}
 	getPubkey() { 
 		let v = this._pubkey; 
 		return v ? new Pubkey(v) : undefined;
 	}
 	setPubkey(x) {
-		this._pubkey = x ? Pubkey.from(x).bytes : undefined;
+		let v = try_coerce_bytes_nonempty(x);
+		this._pubkey =  v ? Pubkey.from(v).bytes : undefined;
 	}
 	setName(x) {
 		if (x && !is_string(x)) {
-			throw error_with('unknown name', {name: x})
+			throw error_with('expected string', {name: x})
 		}
 		this._name = x || undefined;
 	}
@@ -767,8 +791,9 @@ class Record {
 	}
 	setText(key, value) {
 		if (!is_string(key) || (value && !is_string(value))) {
-			throw error_with('expected key', {key, value})
-		} else if (value) {
+			throw error_with('expected strings', {key, value})
+		} 
+		if (value) {
 			this._texts.set(key, value);
 		} else {
 			this._texts.delete(key);
@@ -785,11 +810,14 @@ class Record {
 	setAddress(x, y) {
 		if (x instanceof Address) {
 			this._addrs.set(x.coin.type, x.bytes.slice());
-		} else if (y) {
-			let a = Address.from(x, y);
-			this._addrs.set(a.coin.type, a.bytes);
 		} else {
-			this._addrs.delete(Coin.from(x).type);
+			let coin = Coin.from(x);
+			let v = try_coerce_bytes_nonempty(y);
+			if (v) {
+				this._addrs.set(coin.type, Address.from(coin, v).bytes);
+			} else {
+				this._addrs.delete(coin.type);
+			}
 		}
 	}
 	set(key, value, silent) {

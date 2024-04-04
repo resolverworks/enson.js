@@ -9,6 +9,12 @@ test('IPFS', async T => {
 });
 
 test('Chash', async T => {	
+	
+	await T.test('invalid: empty string', () => assert.throws(() => Chash.from('')));
+	await T.test('invalid: empty bytes', () => assert.throws(() => Chash.from(new Uint8Array(0))));
+	await T.test('invalid: null', () => assert.throws(() => Chash.from(null)));
+	await T.test('invalid: overflow', () => assert.throws(() => Chash.from(Uint8Array.of(128))));
+
 	await T.test("Vitalik's Blog on IPFS", async TT => {
 		let raw = '0xe301017012201687de19f1516b9e560ab8655faa678e3a023ebff43494ac06a36581aafc957e';
 		let hash = 'k2jmtxrxbr58aa3716vvr99qallufj3qae595op83p37jod4exujup32';

@@ -38,7 +38,7 @@ export function is_bigint(x) {
 }
 
 export function is_samecase_phex(s) {
-	return is_string(s) && /^0x([0-9A-F]+|[0-9a-f]+)/i.test(s);
+	return is_string(s) && /^0x([0-9A-F]*|[0-9a-f]*)/i.test(s);
 }
 
 export function bytes_from(x, copy = true) {
@@ -87,6 +87,6 @@ export function array_equals(a, b) {
 	if (a === b) return true;
 	let n = a.length;
 	let c = b.length === n;
-	for (let i = 0; !c && i < n; i++) c = a[i] === b[i];
+	for (let i = 0; c && i < n; i++) c = a[i] === b[i];
 	return c;
 }

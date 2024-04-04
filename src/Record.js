@@ -2,7 +2,7 @@ import {Coin} from './Coin.js';
 import {Address} from './Address.js';
 import {Chash} from './Chash.js';
 import {Pubkey} from './Pubkey.js';
-import {error_with, is_string, bytes32_from, utf8_from_bytes, bigUintAt, bytes_from, namehash} from './utils.js';
+import {error_with, is_string, bytes32_from, utf8_from_bytes, bigUintAt, bytes_from, namehash, try_coerce_bytes} from './utils.js';
 import {createView, utf8ToBytes} from '@noble/hashes/utils';
 
 const SEL_TEXT   = 0x59d1d43c; // https://adraffy.github.io/keccak.js/test/demo.html#algo=evm&s=text%28bytes32%2Cstring%29&escape=1&encoding=utf8
@@ -19,6 +19,11 @@ const PREFIX_PUBKEY = PREFIX_MAGIC + 'pubkey';
 const PREFIX_NAME   = PREFIX_MAGIC + 'name';
 
 // TODO: add missing profiles, like ABI()
+
+function try_coerce_bytes_nonempty(x) {
+	let v = try_coerce_bytes(x);
+	if (x && (x === v || v.length)) return v;
+}
 
 export class Record {	
 	static from(xs, silent) {
@@ -42,6 +47,7 @@ export class Record {
 			for (let [k, x] of xs._addrs) this.set(k, x.slice());
 			if (xs._chash)  this._chash  = xs._chash.slice();
 			if (xs._pubkey) this._pubkey = xs._pubkey.slice();
+			if (xs._name)   this._name   = xs._name;
 		} else if (Array.isArray(xs)) { 
 			for (let [k, x] of xs) this.set(k, x, silent);
 		} else {
@@ -53,18 +59,20 @@ export class Record {
 		return v ? new Chash(v) : undefined;
 	}
 	setChash(x, hint) {
-		this._chash = x ? Chash.from(x, hint).bytes : undefined;
+		let v = try_coerce_bytes_nonempty(x);
+		this._chash = v ? Chash.from(v, hint).bytes : undefined;
 	}
 	getPubkey() { 
 		let v = this._pubkey; 
 		return v ? new Pubkey(v) : undefined;
 	}
 	setPubkey(x) {
-		this._pubkey = x ? Pubkey.from(x).bytes : undefined;
+		let v = try_coerce_bytes_nonempty(x);
+		this._pubkey =  v ? Pubkey.from(v).bytes : undefined;
 	}
 	setName(x) {
 		if (x && !is_string(x)) {
-			throw error_with('unknown name', {name: x})
+			throw error_with('expected string', {name: x})
 		}
 		this._name = x || undefined;
 	}
@@ -73,8 +81,9 @@ export class Record {
 	}
 	setText(key, value) {
 		if (!is_string(key) || (value && !is_string(value))) {
-			throw error_with('expected key', {key, value})
-		} else if (value) {
+			throw error_with('expected strings', {key, value})
+		} 
+		if (value) {
 			this._texts.set(key, value);
 		} else {
 			this._texts.delete(key);
@@ -91,11 +100,14 @@ export class Record {
 	setAddress(x, y) {
 		if (x instanceof Address) {
 			this._addrs.set(x.coin.type, x.bytes.slice());
-		} else if (y) {
-			let a = Address.from(x, y);
-			this._addrs.set(a.coin.type, a.bytes);
 		} else {
-			this._addrs.delete(Coin.from(x).type);
+			let coin = Coin.from(x);
+			let v = try_coerce_bytes_nonempty(y);
+			if (v) {
+				this._addrs.set(coin.type, Address.from(coin, v).bytes);
+			} else {
+				this._addrs.delete(coin.type);
+			}
 		}
 	}
 	set(key, value, silent) {

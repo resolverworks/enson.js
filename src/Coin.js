@@ -1,5 +1,5 @@
 import {getCoderByCoinType, coinNameToTypeMap, coinTypeToNameMap} from '@ensdomains/address-encoder';
-import {error_with, is_bigint, is_number, is_string, is_samecase_phex, phex_from_bytes} from './utils.js';
+import {error_with, is_bigint, is_number, is_string, is_samecase_phex, phex_from_bytes, array_equals} from './utils.js';
 import {hexToBytes} from '@noble/hashes/utils';
 
 const COINS = new Map();
@@ -113,6 +113,11 @@ export class Coin {
 		let {type, name, title, chain} = this;
 		return {type, name, title, chain};
 	}
+	assertValid(v) {
+		if (!array_equals(this.parse(this.format(v)), v)) {
+			throw new Error('roundtrip failed');
+		}
+	}
 }
 
 export class UnnamedCoin extends Coin {
@@ -129,8 +134,9 @@ export class UnnamedEVMCoin extends UnnamedCoin {
 export class UnknownCoin extends UnnamedCoin {
 	get name()  { return PREFIX_UNKNOWN + this.type; }
 	get title() { return 'Unknown Coin'; }
+	assertValid(v) { return v.length > 0; }
 	parse(s)    { throw error_with('unknown parser', {coin: this, value: s}); }
-	format(v)   { return `{${phex_from_bytes(v)}}`; }
+	format(v)   { return `{${phex_from_bytes(v)}}`; } // TODO: decide what to do here
 	toObject() {
 		let {type, title} = this;
 		return {type, title};

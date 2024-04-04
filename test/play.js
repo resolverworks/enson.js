@@ -18,7 +18,6 @@ console.log([...r]);
 // console.log([...Coin]);
 // console.log(Coin.count);
 
-
 console.log(Address.from('0x51050ec063d393217B436747617aD1C2285Aeeee').toObject());
 
 console.log(Coin.from('eth'));

@@ -12,14 +12,19 @@ export class Address {
 		} else {
 			coin = Coin.from(coin);
 		}
-		let v = try_coerce_bytes(value);
-		if (v !== value) {
-			coin.format(v); // validate
+		try {
+			let v = try_coerce_bytes(value);
+			if (v === value) {
+				if (!is_string(value)) {
+					throw new Error('unknown address format');
+				}
+				v = coin.parse(value);
+			}
+			coin.assertValid(v);
 			return new this(coin, v);
-		} else if (is_string(value)) {
-			return new this(coin, coin.parse(value));
+		} catch (err) {
+			throw new error_with('invalid address', {coin, value}, err);
 		}
-		throw new error_with('unknown address format', {coin, value});
 	}
 	constructor(coin, bytes) {
 		this.coin = coin;
