@@ -1,4 +1,4 @@
-import {Profile, Record, Coin, Address, Pubkey, try_coerce_bytes} from '../src/index.js';
+import {Profile, Record, Coin, Address, Pubkey} from '../src/index.js';
 
 let p = new Profile();
 p.setText('name');
@@ -14,9 +14,6 @@ let r = Record.from({
 });
 
 console.log([...r]);
-
-// console.log([...Coin]);
-// console.log(Coin.count);
 
 console.log(Address.from('0x51050ec063d393217B436747617aD1C2285Aeeee').toObject());
 
