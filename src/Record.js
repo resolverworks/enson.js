@@ -2,7 +2,7 @@ import {Coin} from './Coin.js';
 import {Address} from './Address.js';
 import {Chash} from './Chash.js';
 import {Pubkey} from './Pubkey.js';
-import {error_with, is_string, bytes32_from, utf8_from_bytes, bigUintAt, bytes_from, namehash, try_coerce_bytes} from './utils.js';
+import {error_with, is_string, bytes32_from, utf8_from_bytes, bigint_at, bytes_from, namehash, try_coerce_bytes} from './utils.js';
 import {createView, utf8ToBytes} from '@noble/hashes/utils';
 
 const SEL_TEXT   = 0x59d1d43c; // https://adraffy.github.io/keccak.js/test/demo.html#algo=evm&s=text%28bytes32%2Cstring%29&escape=1&encoding=utf8
@@ -210,14 +210,14 @@ export class Record {
 			}
 			let dv = createView(call);
 			switch (dv.getUint32(0)) {
-				case SEL_TEXT:   {
+				case SEL_TEXT: {
 					let key = utf8_from_bytes(read_memory(call.subarray(4), 32));
 					let value = utf8_from_bytes(read_memory(answer, 0));
 					return this.setText(key, value);
 				}
 				case SEL_ADDR: {
 					let v = read_memory(answer, 0);
-					return this.setAddress(bigUintAt(call, 36), v.length && v);
+					return this.setAddress(bigint_at(call, 36), v.length && v);
 				}
 				case SEL_CHASH: {
 					let v = read_memory(answer, 0);
@@ -401,7 +401,7 @@ function safe_uint(i) {
 }
 
 function read_memory(v, pos) {
-	pos = safe_uint(bigUintAt(v, pos));
-	let len = safe_uint(bigUintAt(v, pos)); pos += 32;
+	pos = safe_uint(bigint_at(v, pos));
+	let len = safe_uint(bigint_at(v, pos)); pos += 32;
 	return v.subarray(pos, pos + len);
 }

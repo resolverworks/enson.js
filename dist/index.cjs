@@ -55,14 +55,14 @@ function bytes_from(x, copy = true) {
 	throw error_with('expected bytes-like', {value: x});
 }
 
-// always !== if successful
-function try_coerce_bytes(x) {
+// always !== if successful (returns a copy)
+function try_coerce_bytes(x, no_phex) {
 	if (x instanceof Uint8Array) {
 		return x.slice();
-	} else if (is_samecase_phex(x)) {
-		return utils.hexToBytes(x.slice(2));
 	} else if (Array.isArray(x)) {
 		return Uint8Array.from(x);
+	} else if (!no_phex && is_samecase_phex(x)) {
+		return utils.hexToBytes(x.slice(2)); // throws if odd-length
 	} else {
 		return x;
 	} 
@@ -73,9 +73,10 @@ function utf8_from_bytes(v) {
 }
 
 function bytes32_from(x) {
+	x = try_coerce_bytes(x, true);
 	if (x instanceof Uint8Array) {
 		if (x.length !== 32) throw error_with('expected 32-bytes', {value: x});
-		return x.slice();
+		return x;
 	}
 	return utils.hexToBytes(BigInt(x).toString(16).padStart(64, '0').slice(-64));
 }
@@ -84,7 +85,7 @@ function phex_from_bytes(v) {
 	return '0x' + utils.bytesToHex(v);
 }
 
-function bigUintAt(v, i) {
+function bigint_at(v, i) {
 	return BigInt(phex_from_bytes(v.subarray(i, i + 32)));
 }
 
@@ -136,11 +137,16 @@ class Coin {
 			return this.fromChain(chain);
 		}
 	}
+	static chain(x) {
+		let type = this.type(x);
+		if (type === TYPE_ETH) return 1;
+		if (type & MSB) return Number(type & (MSB-1n));
+	}
 	static type(x) {
 		if (is_bigint(x)) return x;
 		if (is_number(x)) return BigInt(x);
-		if (x instanceof Coin) return x.type;
-		return Coin.from(x).type;
+		if (x instanceof this) return x.type;
+		return this.from(x).type;
 	}
 	static fromType(type) {
 		type = BigInt(type);
@@ -196,12 +202,7 @@ class Coin {
 		this.type = type;
 	}
 	get chain() {
-		let {type} = this;
-		if (type === TYPE_ETH) {
-			return 1;
-		} else if (type & MSB) {
-			return Number(type & (MSB-1n));
-		}
+		return Coin.chain(this.type); // meh: this.constructor
 	}
 	toObject() {
 		let {type, name, title, chain} = this;
@@ -666,10 +667,9 @@ class Pubkey {
 			return new this(value.bytes.slice()); // copy
 		}
 		try {
-			if (value instanceof Uint8Array) {
-				return new this(value);
-			} else if (is_samecase_phex(value)) {
-				return new this(utils.hexToBytes(value.slice(2)));
+			let temp = try_coerce_bytes(value);
+			if (temp instanceof Uint8Array) {
+				return new this(temp);
 			} else if (typeof value === 'object') {
 				return this.fromXY(value.x, value.y);
 			} 
@@ -922,14 +922,14 @@ class Record {
 			}
 			let dv = utils.createView(call);
 			switch (dv.getUint32(0)) {
-				case SEL_TEXT:   {
+				case SEL_TEXT: {
 					let key = utf8_from_bytes(read_memory(call.subarray(4), 32));
 					let value = utf8_from_bytes(read_memory(answer, 0));
 					return this.setText(key, value);
 				}
 				case SEL_ADDR: {
 					let v = read_memory(answer, 0);
-					return this.setAddress(bigUintAt(call, 36), v.length && v);
+					return this.setAddress(bigint_at(call, 36), v.length && v);
 				}
 				case SEL_CHASH: {
 					let v = read_memory(answer, 0);
@@ -1113,8 +1113,8 @@ function safe_uint(i) {
 }
 
 function read_memory(v, pos) {
-	pos = safe_uint(bigUintAt(v, pos));
-	let len = safe_uint(bigUintAt(v, pos)); pos += 32;
+	pos = safe_uint(bigint_at(v, pos));
+	let len = safe_uint(bigint_at(v, pos)); pos += 32;
 	return v.subarray(pos, pos + len);
 }
 
@@ -1268,7 +1268,7 @@ exports.UnknownCoin = UnknownCoin;
 exports.UnnamedCoin = UnnamedCoin;
 exports.UnnamedEVMCoin = UnnamedEVMCoin;
 exports.array_equals = array_equals;
-exports.bigUintAt = bigUintAt;
+exports.bigint_at = bigint_at;
 exports.bytes32_from = bytes32_from;
 exports.bytes_from = bytes_from;
 exports.error_with = error_with;

@@ -54,13 +54,20 @@ test('Address', async T => {
 				'bc1', 
 				'bc2'
 			],
+		},
+		{
+			coin: Coin.from('ada'),
+			valid: {
+				input: 'addr1q84x3qh7e0q6fldmj5mnk89vjlvgncsw5g9dmxmel4qt00j04mm39fw8l4pewc59xl59v7zszwye9vhuh3zwft8e5j9sslflq0',
+				bytes: bytes_from('0x01ea6882fecbc1a4fdbb95373b1cac97d889e20ea20add9b79fd40b7be4faef712a5c7fd4397628537e8567850138992b2fcbc44e4acf9a48b')
+			}
 		}
 	];
 	for (let {coin, valid, invalid} of coins) {
 		await T.test(title(coin), async TT => {
 			await TT.test('from string', () => assert.deepEqual(Address.from(coin, valid.input).bytes, valid.bytes));
 			await TT.test('from bytes', () => assert.equal(Address.from(coin, valid.bytes).value, valid.input));
-			await TT.test('invalid', () => {
+			if (invalid) await TT.test('invalid', () => {
 				for (let x of invalid) {
 					if (x instanceof Uint8Array) {
 						assert.throws(() => coin.assertValid(x));

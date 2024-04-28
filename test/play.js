@@ -1,4 +1,4 @@
-import {Profile, Record, Coin, Address, Pubkey} from '../src/index.js';
+import {Profile, Record, Coin, Address, Pubkey, try_coerce_bytes} from '../src/index.js';
 
 let p = new Profile();
 p.setText('name');

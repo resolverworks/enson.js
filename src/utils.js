@@ -50,14 +50,14 @@ export function bytes_from(x, copy = true) {
 	throw error_with('expected bytes-like', {value: x});
 }
 
-// always !== if successful
-export function try_coerce_bytes(x) {
+// always !== if successful (returns a copy)
+export function try_coerce_bytes(x, no_phex) {
 	if (x instanceof Uint8Array) {
 		return x.slice();
-	} else if (is_samecase_phex(x)) {
-		return hexToBytes(x.slice(2));
 	} else if (Array.isArray(x)) {
 		return Uint8Array.from(x);
+	} else if (!no_phex && is_samecase_phex(x)) {
+		return hexToBytes(x.slice(2)); // throws if odd-length
 	} else {
 		return x;
 	} 
@@ -68,9 +68,10 @@ export function utf8_from_bytes(v) {
 }
 
 export function bytes32_from(x) {
+	x = try_coerce_bytes(x, true);
 	if (x instanceof Uint8Array) {
 		if (x.length !== 32) throw error_with('expected 32-bytes', {value: x});
-		return x.slice();
+		return x;
 	}
 	return hexToBytes(BigInt(x).toString(16).padStart(64, '0').slice(-64));
 }
@@ -79,7 +80,7 @@ export function phex_from_bytes(v) {
 	return '0x' + bytesToHex(v);
 }
 
-export function bigUintAt(v, i) {
+export function bigint_at(v, i) {
 	return BigInt(phex_from_bytes(v.subarray(i, i + 32)));
 }
 

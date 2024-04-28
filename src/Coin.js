@@ -42,11 +42,16 @@ export class Coin {
 			return this.fromChain(chain);
 		}
 	}
+	static chain(x) {
+		let type = this.type(x);
+		if (type === TYPE_ETH) return 1;
+		if (type & MSB) return Number(type & (MSB-1n));
+	}
 	static type(x) {
 		if (is_bigint(x)) return x;
 		if (is_number(x)) return BigInt(x);
-		if (x instanceof Coin) return x.type;
-		return Coin.from(x).type;
+		if (x instanceof this) return x.type;
+		return this.from(x).type;
 	}
 	static fromType(type) {
 		type = BigInt(type);
@@ -102,12 +107,7 @@ export class Coin {
 		this.type = type;
 	}
 	get chain() {
-		let {type} = this;
-		if (type === TYPE_ETH) {
-			return 1;
-		} else if (type & MSB) {
-			return Number(type & (MSB-1n));
-		}
+		return Coin.chain(this.type); // meh: this.constructor
 	}
 	toObject() {
 		let {type, name, title, chain} = this;

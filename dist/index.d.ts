@@ -1,12 +1,13 @@
-type ToBigInt = number | string | BigInt;
+type ToBigInt = number | string | bigint;
 type ToData = Uint8Array | number[] | string;
+type ToBytes32 = ToBigInt | ToData;
 
 export class Pubkey {
-	static from(value: Pubkey | ToData | {x: ToBigInt, y: ToBigInt}): Pubkey;
-	static fromXY(x: ToBigInt, y: ToBigInt): Pubkey;
+	static from(value: Pubkey | ToData | {x: ToBytes32, y: ToBytes32}): Pubkey;
+	static fromXY(x: ToBytes32, y: ToBytes32): Pubkey;
 	constructor(v?: Uint8Array);
-	set x(i: ToBigInt);
-	set y(i: ToBigInt);
+	set x(i: ToBytes32);
+	set y(i: ToBytes32);
 	get x(): Uint8Array;
 	get y(): Uint8Array;
 	get isNull(): boolean;
@@ -57,7 +58,8 @@ type CoinQuery = Coin | ToBigInt | {name?: string, type?: ToBigInt, chain?: numb
 export class Coin {
 	static get count(): number;
 	static [Symbol.iterator](): IterableIterator<Coin>;
-	static type(query: CoinQuery): bigint;	
+	static type(query: CoinQuery): bigint;
+	static chain(query: CoinQuery): number | undefined;
 	static from(query: CoinQuery): Coin;
 	static fromType(type: ToBigInt): Coin;
 	static fromName(name: string): Coin;
@@ -185,4 +187,5 @@ export function namehash(name: string | string[]): Uint8Array;
 // function is_string(x: any): boolean;
 // function maybe_phex(x: any): boolean;
 // function bytes_from_data(x: ToData): Uint8Array;
-// function bytes32_from(x: ToBigInt | Uint8Array): Uint8Array;
+export function bytes32_from(x: ToBytes32): Uint8Array;
+export function try_coerce_bytes(x: ToData): Uint8Array;

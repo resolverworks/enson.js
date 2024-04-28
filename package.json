@@ -1,10 +1,15 @@
 {
 	"name": "@resolverworks/enson",
-	"version": "0.0.9",
+	"version": "0.0.10",
 	"description": "ENS Object Notation",
 	"author": "raffy.eth",
 	"license": "MIT",
 	"type": "module",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		"import": "./dist/index.mjs",
+		"require": "./dist/index.cjs"
+	},
 	"scripts": {
 		"test": "node test/all.js",
 		"build": "rollup -c"
@@ -18,9 +23,6 @@
 	"devDependencies": {
 		"rollup": "^4.12.0"
 	},
-	"types": "./dist/index.d.ts",
-	"module": "./dist/index.mjs",
-	"main": "./dist/index.cjs",
 	"files": [
 		"./dist"
 	],

@@ -1,7 +1,7 @@
-import {is_samecase_phex, bytes32_from, error_with, phex_from_bytes} from './utils.js';
+import {bytes32_from, error_with, phex_from_bytes, try_coerce_bytes} from './utils.js';
 import {ETH} from './Coin.js';
 import {keccak_256} from '@noble/hashes/sha3';
-import {hexToBytes, bytesToHex} from '@noble/hashes/utils';
+import {bytesToHex} from '@noble/hashes/utils';
 
 // https://github.com/ethereum/EIPs/pull/619/files/9977cf4c2646b46f367e458a939888f93499990c#diff-5692e3f9c0bdb6bf2dbacbdec7059b3d70fcec8a12da584e598dff53e020cf93
 
@@ -18,10 +18,9 @@ export class Pubkey {
 			return new this(value.bytes.slice()); // copy
 		}
 		try {
-			if (value instanceof Uint8Array) {
-				return new this(value);
-			} else if (is_samecase_phex(value)) {
-				return new this(hexToBytes(value.slice(2)));
+			let temp = try_coerce_bytes(value);
+			if (temp instanceof Uint8Array) {
+				return new this(temp);
 			} else if (typeof value === 'object') {
 				return this.fromXY(value.x, value.y);
 			} 
