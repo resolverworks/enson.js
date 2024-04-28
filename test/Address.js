@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Address} from '../src/Address.js';
 import {Coin} from '../src/Coin.js';
-import { bytes_from } from '../src/utils.js';
+import {bytes_from} from '../src/utils.js';
 
 function title(x) {
 	return `$${x.name}/${x.type}`;

@@ -188,4 +188,4 @@ export function namehash(name: string | string[]): Uint8Array;
 // function maybe_phex(x: any): boolean;
 // function bytes_from_data(x: ToData): Uint8Array;
 export function bytes32_from(x: ToBytes32): Uint8Array;
-export function try_coerce_bytes(x: ToData): Uint8Array;
+export function try_coerce_bytes(x: ToData, no_phex?: boolean): Uint8Array;
