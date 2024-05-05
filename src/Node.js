@@ -77,17 +77,23 @@ export class Node extends Map {
 		// TODO should this support arrays?
 		try {
 			if (typeof obj !== 'object' || Array.isArray(obj)) throw new Error('expected object');
-			let record = obj[LABEL_SELF];
-			this.record = Record.from(record || obj);
-			if (record) {
-				for (let [ks, v] of Object.entries(obj)) {
-					if (ks === LABEL_SELF) continue; // skip record type
-					ks = ks.trim();
+			let rest = [];
+			for (let [k, v] of Object.entries(obj)) {
+				if (k === LABEL_SELF) {
+					this.record = Record.from(v);
+				} else if (!Record.isSpecialKey(k) && v?.constructor === Object) {
+					let ks = k.trim();
 					if (!ks) throw new Error('expected label');
 					for (let k of ks.split(/\s+/)) {
 						this.create(k).import(v);
 					}
+				} else {
+					rest.push([k, v]);
 				}
+			}
+			if (rest.length) {
+				if (!this.record) this.record = new Record();
+				this.record.import(rest);
 			}
 		} catch (err) {
 			throw error_with(`import "${this.name}": ${err.message}`, {json: obj}, err);

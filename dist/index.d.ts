@@ -118,6 +118,8 @@ export class Record {
 	static readonly PUBKEY: Symbol;
 	static readonly NAME: Symbol;
 
+	static isSpecialKey(key: any): boolean;
+
 	static from(records: Record | ManyRecords): Record;
 	get size(): number;
 	

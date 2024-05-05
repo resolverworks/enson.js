@@ -1,12 +1,12 @@
 {
 	"name": "@resolverworks/enson",
-	"version": "0.0.10",
+	"version": "0.0.11",
 	"description": "ENS Object Notation",
 	"author": "raffy.eth",
 	"license": "MIT",
 	"type": "module",
-	"types": "./dist/index.d.ts",
 	"exports": {
+		"types": "./dist/index.d.ts",
 		"import": "./dist/index.mjs",
 		"require": "./dist/index.cjs"
 	},

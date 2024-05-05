@@ -25,7 +25,10 @@ function try_coerce_bytes_nonempty(x) {
 	if (x && (x === v || v.length)) return v;
 }
 
-export class Record {	
+export class Record {
+	static isSpecialKey(s) {
+		return s?.startsWith(PREFIX_COIN) || s?.startsWith(PREFIX_MAGIC);
+	}
 	static from(xs, silent) {
 		let r = new this();
 		r.import(xs, silent);

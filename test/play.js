@@ -1,4 +1,4 @@
-import {Profile, Record, Coin, Address, Pubkey} from '../src/index.js';
+import {Profile, Record, Coin, Address, Pubkey, Node} from '../src/index.js';
 
 let p = new Profile();
 p.setText('name');
@@ -45,3 +45,18 @@ let x = {
 console.log(x);
 
 console.log(Profile.ENS());
+
+let node = Node.root();
+node.import({
+	"a": {
+		"b": {
+			"c": {
+				".": {
+					"chonk": "b"
+				},
+				"chonk": "a"
+			}
+		}
+	}
+});
+console.log(node);
