@@ -8,6 +8,13 @@ test('IPFS', async T => {
 	await T.test('scheme', () => assert(IPFS.scheme, 'ipfs'));
 });
 
+test('Onion', async T => {
+	// https://github.com/torproject/torspec/blob/main/rend-spec-v3.txt
+	await T.test('example 1', () => Chash.fromOnion('pg6mmjiyjmcrsslvykfwnntlaru7p5svn6y2ymmju6nubxndf4pscryd'));
+	await T.test('example 2', () => Chash.fromOnion('sp3k262uwy4r2k3ycr5awluarykdpag6a7y33jxop4cs2lu5uz5sseqd'));
+	await T.test('example 3', () => Chash.fromOnion('xa4r2iadxm55fbnqgwwi5mymqdcofiu3w6rpbtqn7b2dyn7mgwj64jyd'));
+});
+
 test('Chash', async T => {	
 	
 	await T.test('invalid: empty string', () => assert.throws(() => Chash.from('')));

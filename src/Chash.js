@@ -1,6 +1,6 @@
 import {error_with, array_equals, utf8_from_bytes, is_string, phex_from_bytes, bytes_from, try_coerce_bytes} from './utils.js';
 import {CID, uvarint, Base64URL, Base64, Base32} from '@adraffy/cid';
-import {keccak_256} from '@noble/hashes/sha3';
+import {keccak_256, sha3_256} from '@noble/hashes/sha3';
 import {utf8ToBytes, toBytes} from '@noble/hashes/utils';
 
 const SCHEME_SEPARATOR = '://';
@@ -70,10 +70,10 @@ export const Onion = {
 		let v = new Uint8Array(48); // 15 + 32 + 1
 		v.set(utf8ToBytes(ONION_SUFFIX + ' checksum'));
 		v.set(pubkey, 15);
-		v.set(47, version);
+		v[47] = version;
 		let bytes = new Uint8Array(35);
 		bytes.set(pubkey);
-		bytes.set(32, keccak_256(v).subarray(0, 2));
+		bytes.set(sha3_256(v).subarray(0, 2), 32);
 		bytes[34] = version;
 		return bytes;
 	}
