@@ -1,4 +1,6 @@
 import {defineConfig} from 'rollup';
+import terser from '@rollup/plugin-terser';
+import nodeResolver from '@rollup/plugin-node-resolve';
 
 export default defineConfig([
 	{
@@ -13,6 +15,23 @@ export default defineConfig([
 				format: 'cjs',
 			},
 		],
-		external: /^(@|node:|[^\.\/])/
-	}
+		external: /^(@|node:)/
+	},
+	{
+		input: './src/index.js',
+		plugins: [nodeResolver()],
+		output: [
+			{
+				file: './dist/index.min.js',
+				format: 'es',
+				plugins: [terser({
+					compress: {
+						toplevel: true,
+						dead_code: true,
+						passes: 2,
+					},
+				})],
+			},
+		],
+	},
 ]);
