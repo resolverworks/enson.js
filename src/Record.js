@@ -12,6 +12,9 @@ const SEL_PUBKEY = 0xc8690233; // https://adraffy.github.io/keccak.js/test/demo.
 const SEL_NAME   = 0x691f3431; // https://adraffy.github.io/keccak.js/test/demo.html#algo=evm&s=name%28bytes32%29&escape=1&encoding=utf8
 const SEL_ADDR0  = 0x3b3b57de; // https://adraffy.github.io/keccak.js/test/demo.html#algo=evm&s=addr%28bytes32%29&escape=1&encoding=utf8
 
+//const SEL_RESOLVE  = 0x9061b923; // https://adraffy.github.io/keccak.js/test/demo.html#algo=evm&s=resolve%28bytes%2Cbytes%29&escape=1&encoding=utf8
+//const SEL_MULTICALL = 0xac9650d8; // https://adraffy.github.io/keccak.js/test/demo.html#algo=evm&s=multicall%28bytes%5B%5D%29&escape=1&encoding=utf8
+
 const PREFIX_COIN = '$';
 const PREFIX_MAGIC = '#';
 const PREFIX_CHASH  = PREFIX_MAGIC + 'chash';
@@ -370,6 +373,18 @@ export class Profile {
 		if (this.addr0)  calls.push(make_call(SEL_ADDR0, node));
 		return calls;
 	}
+	/*
+	makeCallForName(name, outer) {
+		let calls = this.makeCallsForName(name);
+		if (calls.length === 1) {
+			return encode(SEL_RESOLVE, [{type: 'bytes', value: }])
+		} else if (outer) {
+
+		} else {
+
+		}
+	}
+	*/
 }
 
 function make_call(selector, node) {

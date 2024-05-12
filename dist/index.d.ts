@@ -1,6 +1,7 @@
 type ToBigInt = number | string | bigint;
 type ToData = Uint8Array | number[] | string;
 type ToBytes32 = ToBigInt | ToData;
+type ToName = string | string[];
 
 export class Pubkey {
 	static from(value: Pubkey | ToData | {x: ToBytes32, y: ToBytes32}): Pubkey;
@@ -153,8 +154,8 @@ export class Record {
 }
 
 export class Node extends Map {
-	static create(name: string): Node;
-	static root(name?: string): Node;
+	static create(name: ToName): Node;
+	static root(tag?: string): Node;
 	constructor(label: string, parent?: Node);
 
 	readonly label: string;
@@ -163,17 +164,18 @@ export class Node extends Map {
 
 	get labelhash(): Uint8Array;
 	get namehash(): Uint8Array;
+	get dns(): Uint8Array;
 
 	get prettyName(): string;
 	get name(): string;
-	get nodeCount(): number;
 
 	get root(): number;
 	get depth(): number;
+	get nodeCount(): number;
 	path(includeRoot?: boolean): Node[];
 
-	find(name: string): Node | undefined;
-	create(name: string): Node;
+	find(name: ToName): Node | undefined;
+	create(name: ToName): Node;
 	child(label: string): Node;
 	import(obj: Object): void;
 
@@ -184,10 +186,14 @@ export class Node extends Map {
 }
 
 export function error_with(message: string, options: Object, cause?: any): Error;
-export function namehash(name: string | string[]): Uint8Array;
+export function namesplit(name: ToName): string[];
+export function namehash(name: ToName): Uint8Array;
+export function dns_encoded(name: ToName): Uint8Array;
+
 // function is_number(x: any): boolean;
 // function is_string(x: any): boolean;
 // function maybe_phex(x: any): boolean;
 // function bytes_from_data(x: ToData): Uint8Array;
+
 export function bytes32_from(x: ToBytes32): Uint8Array;
 export function try_coerce_bytes(x: ToData, no_phex?: boolean): Uint8Array;

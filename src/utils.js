@@ -1,19 +1,33 @@
-import {bytesToHex, hexToBytes} from '@noble/hashes/utils';
+import {bytesToHex, hexToBytes, utf8ToBytes} from '@noble/hashes/utils';
 import {keccak_256} from '@noble/hashes/sha3';
 
-export function namesplit(s) {
-	return s ? s.split('.') : [];
+export function namesplit(x) {
+	return Array.isArray(x) ? x : x ? x.split('.') : [];
 }
 
-export function namehash(labels) {
-	if (!Array.isArray(labels)) {
-		labels = namesplit(labels);
-	}
-	return labels.reduceRight((v, x) => {
+export function namehash(name) {
+	return namesplit(name).reduceRight((v, x) => {
 		v.set(keccak_256(x), 32);
 		v.set(keccak_256(v), 0);
 		return v;
 	}, new Uint8Array(64)).slice(0, 32);
+}
+
+export function dns_encoded(name) {
+	let labels = namesplit(name);
+	let m = labels.map(label => {
+		let v = utf8ToBytes(label);
+		if (!v.length) throw error_with('empty label', {labels});
+		if (v.length > 255) throw error_with('too long', {labels, label});
+		return v;
+	});
+	let dns = new Uint8Array(m.reduce((a, v) => a + 1 + v.length, 1));
+	let pos = 0;
+	for (let v of m) {
+		dns[pos++] = v.length;
+		dns.set(v, pos); pos += v.length;
+	}
+	return dns;
 }
 
 export function error_with(message, options, cause) {

@@ -1,4 +1,4 @@
-import {error_with, namesplit, namehash} from './utils.js';
+import {error_with, namesplit, namehash, dns_encoded} from './utils.js';
 import {Record} from './Record.js';
 import {keccak_256} from '@noble/hashes/sha3';
 import {ens_normalize, ens_beautify} from '@adraffy/ens-normalize';
@@ -25,6 +25,9 @@ export class Node extends Map {
 	get namehash() {
 		return namehash(this.path().map(x => x.label));
 	}
+	get dns() {
+		return dns_encoded(this.path().map(x => x.label));
+	}
 	get prettyName() {
 		return ens_beautify(this.name);
 	}
@@ -34,6 +37,11 @@ export class Node extends Map {
 	get depth() {
 		let n = 0;
 		for (let x = this; x.parent; x = x.parent) ++n;
+		return n;
+	}
+	get nodeCount() {
+		let n = 0;
+		this.scan(() => ++n);
 		return n;
 	}
 	get root() {
@@ -46,11 +54,6 @@ export class Node extends Map {
 		let v = [];
 		for (let x = this; inc_root ? x : x.parent; x = x.parent) v.push(x);
 		return v;
-	}
-	get nodeCount() {
-		let n = 0;
-		this.scan(() => ++n);
-		return n;
 	}
 	// get node "a" from "a.b.c" or null
 	// find("") is identity

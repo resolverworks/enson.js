@@ -6,19 +6,33 @@ var sha3 = require('@noble/hashes/sha3');
 var cid = require('@adraffy/cid');
 var ensNormalize = require('@adraffy/ens-normalize');
 
-function namesplit(s) {
-	return s ? s.split('.') : [];
+function namesplit(x) {
+	return Array.isArray(x) ? x : x ? x.split('.') : [];
 }
 
-function namehash(labels) {
-	if (!Array.isArray(labels)) {
-		labels = namesplit(labels);
-	}
-	return labels.reduceRight((v, x) => {
+function namehash(name) {
+	return namesplit(name).reduceRight((v, x) => {
 		v.set(sha3.keccak_256(x), 32);
 		v.set(sha3.keccak_256(v), 0);
 		return v;
 	}, new Uint8Array(64)).slice(0, 32);
+}
+
+function dns_encoded(name) {
+	let labels = namesplit(name);
+	let m = labels.map(label => {
+		let v = utils.utf8ToBytes(label);
+		if (!v.length) throw error_with('empty label', {labels});
+		if (v.length > 255) throw error_with('too long', {labels, label});
+		return v;
+	});
+	let dns = new Uint8Array(m.reduce((a, v) => a + 1 + v.length, 1));
+	let pos = 0;
+	for (let v of m) {
+		dns[pos++] = v.length;
+		dns.set(v, pos); pos += v.length;
+	}
+	return dns;
 }
 
 function error_with(message, options, cause) {
@@ -204,6 +218,7 @@ class Coin {
 	get chain() {
 		return Coin.chain(this.type); // meh: this.constructor
 	}
+	// TODO: does this need toJSON() and toString()
 	toObject() {
 		let {type, name, title, chain} = this;
 		return {type, name, title, chain};
@@ -613,10 +628,12 @@ class Chash {
 		return this.spec.toHash(this._data); 
 	}
 	toObject() {
-		let {spec: {codec, name}, _data: v} = this;
+		let {spec, _data: v} = this;
+		let {codec, name} = spec;
 		return {
 			protocol: {codec, name},
-			...this.spec.toObject(v)
+			url: spec.toURL(v),
+			...spec.toObject(v)
 		};
 	}
 	toEntry() {
@@ -723,6 +740,9 @@ const SEL_CHASH  = 0xbc1c58d1; // https://adraffy.github.io/keccak.js/test/demo.
 const SEL_PUBKEY = 0xc8690233; // https://adraffy.github.io/keccak.js/test/demo.html#algo=evm&s=pubkey%28bytes32%29&escape=1&encoding=utf8
 const SEL_NAME   = 0x691f3431; // https://adraffy.github.io/keccak.js/test/demo.html#algo=evm&s=name%28bytes32%29&escape=1&encoding=utf8
 const SEL_ADDR0  = 0x3b3b57de; // https://adraffy.github.io/keccak.js/test/demo.html#algo=evm&s=addr%28bytes32%29&escape=1&encoding=utf8
+
+//const SEL_RESOLVE  = 0x9061b923; // https://adraffy.github.io/keccak.js/test/demo.html#algo=evm&s=resolve%28bytes%2Cbytes%29&escape=1&encoding=utf8
+//const SEL_MULTICALL = 0xac9650d8; // https://adraffy.github.io/keccak.js/test/demo.html#algo=evm&s=multicall%28bytes%5B%5D%29&escape=1&encoding=utf8
 
 const PREFIX_COIN = '$';
 const PREFIX_MAGIC = '#';
@@ -1082,6 +1102,18 @@ class Profile {
 		if (this.addr0)  calls.push(make_call(SEL_ADDR0, node));
 		return calls;
 	}
+	/*
+	makeCallForName(name, outer) {
+		let calls = this.makeCallsForName(name);
+		if (calls.length === 1) {
+			return encode(SEL_RESOLVE, [{type: 'bytes', value: }])
+		} else if (outer) {
+
+		} else {
+
+		}
+	}
+	*/
 }
 
 function make_call(selector, node) {
@@ -1143,6 +1175,9 @@ class Node extends Map {
 	get namehash() {
 		return namehash(this.path().map(x => x.label));
 	}
+	get dns() {
+		return dns_encoded(this.path().map(x => x.label));
+	}
 	get prettyName() {
 		return ensNormalize.ens_beautify(this.name);
 	}
@@ -1152,6 +1187,11 @@ class Node extends Map {
 	get depth() {
 		let n = 0;
 		for (let x = this; x.parent; x = x.parent) ++n;
+		return n;
+	}
+	get nodeCount() {
+		let n = 0;
+		this.scan(() => ++n);
 		return n;
 	}
 	get root() {
@@ -1164,11 +1204,6 @@ class Node extends Map {
 		let v = [];
 		for (let x = this; inc_root ? x : x.parent; x = x.parent) v.push(x);
 		return v;
-	}
-	get nodeCount() {
-		let n = 0;
-		this.scan(() => ++n);
-		return n;
 	}
 	// get node "a" from "a.b.c" or null
 	// find("") is identity
@@ -1280,6 +1315,7 @@ exports.array_equals = array_equals;
 exports.bigint_at = bigint_at;
 exports.bytes32_from = bytes32_from;
 exports.bytes_from = bytes_from;
+exports.dns_encoded = dns_encoded;
 exports.error_with = error_with;
 exports.is_bigint = is_bigint;
 exports.is_number = is_number;

@@ -109,6 +109,7 @@ export class Coin {
 	get chain() {
 		return Coin.chain(this.type); // meh: this.constructor
 	}
+	// TODO: does this need toJSON() and toString()
 	toObject() {
 		let {type, name, title, chain} = this;
 		return {type, name, title, chain};

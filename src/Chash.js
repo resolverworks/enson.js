@@ -328,10 +328,12 @@ export class Chash {
 		return this.spec.toHash(this._data); 
 	}
 	toObject() {
-		let {spec: {codec, name}, _data: v} = this;
+		let {spec, _data: v} = this;
+		let {codec, name} = spec;
 		return {
 			protocol: {codec, name},
-			...this.spec.toObject(v)
+			url: spec.toURL(v),
+			...spec.toObject(v)
 		};
 	}
 	toEntry() {

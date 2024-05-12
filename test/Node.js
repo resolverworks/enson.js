@@ -23,6 +23,14 @@ test('Node', async T => {
 	await T.test('depth', () => {
 		assert.equal(Node.create('a.b.c.d.e').depth, 5);
 	});
+	await T.test('nodeCount', () => {
+		let root = Node.root();   // +1
+		root.create('e.d.c.b.a'); // +5
+		root.create('h.g.b.a');   // +2
+		root.create('i.a');       // +1
+		root.create('j');         // +1
+		assert.equal(root.nodeCount, 10);
+	});
 	await T.test('root', () => {
 		let root = Node.root();
 		let deep = root.create('a.b.c.d.e');
@@ -42,12 +50,8 @@ test('Node', async T => {
 		assert.equal(deep.path().length, 5);
 		assert.equal(deep.path(true).length, 6);
 	});
-	await T.test('nodeCount', () => {
-		let root = Node.root();   // +1
-		root.create('e.d.c.b.a'); // +5
-		root.create('h.g.b.a');   // +2
-		root.create('i.a');       // +1
-		root.create('j');         // +1
-		assert.equal(root.nodeCount, 10);
+	await T.test('dns', () => {
+		assert.equal(phex_from_bytes(Node.create('raffy.eth').dns), '0x0572616666790365746800');
+		assert.equal(phex_from_bytes(Node.create('💩.💩💩').dns), '0x04f09f92a908f09f92a9f09f92a900');
 	});
 });
