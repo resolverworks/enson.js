@@ -133,7 +133,7 @@ export class Coin {
 }
 
 export class UnnamedCoin extends Coin {
-	get isUnnamed() { return true; }
+	get unnamed() { return true; }
 }
 
 export class UnnamedEVMCoin extends UnnamedCoin {

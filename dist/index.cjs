@@ -242,7 +242,7 @@ class Coin {
 }
 
 class UnnamedCoin extends Coin {
-	get isUnnamed() { return true; }
+	get unnamed() { return true; }
 }
 
 class UnnamedEVMCoin extends UnnamedCoin {

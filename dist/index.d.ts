@@ -69,7 +69,8 @@ export class Coin {
 	get name(): string;
 	get title(): string;
 	get chain(): number | undefined;
-	get isUnknown(): boolean;
+	get legacy(): boolean | undefined;
+	get unnamed(): boolean | undefined;
 	toObject(): {type: bigint, name: string, title: string, chain: number | undefined};
 	parse(s: string): Uint8Array;
 	format(v: Uint8Array): string;
