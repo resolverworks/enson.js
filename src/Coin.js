@@ -71,12 +71,14 @@ export class Coin {
 				let names = coinTypeToNameMap[type];
 				if (names) {
 					coin = new Coin(type);
+					let [name, title] = names; // TODO: remove "[LEGACY] "-prefix?
 					Object.defineProperties(coin, {
-						name: {value: names[0], enumerable: true},
-						title: {value: names[1], enumerable: true},
+						name: {value: name, enumerable: true},
+						title: {value: title, enumerable: true},
 						parse: {value: decode},
 						format: {value: encode},
 					});
+					if (name.endsWith('Legacy')) coin.legacy = true; // REE
 					COINS.set(type, coin); // memoize
 				} else {
 					coin = new UnnamedEVMCoin(type);
@@ -95,7 +97,9 @@ export class Coin {
 		} else if (name.startsWith(PREFIX_UNKNOWN)) {
 			type = BigInt(name.slice(PREFIX_UNKNOWN.length));
 		} else {
-			type = coinNameToTypeMap[name.toLowerCase()];
+			let key = name.trim().toLowerCase();
+			if (key.endsWith('legacy')) key = key.slice(0, -6) + 'Legacy'; // REE
+			type = coinNameToTypeMap[key];
 			if (!is_number(type)) throw error_with(`unknown coin: ${name}`, {name});
 		}
 		return this.fromType(type);
@@ -109,7 +113,14 @@ export class Coin {
 	get chain() {
 		return Coin.chain(this.type); // meh: this.constructor
 	}
-	// TODO: does this need toJSON() and toString()
+	toJSON() {
+		return '0x' + this.type.toString(16);
+	}
+	toString() {
+		let {type, name, title, chain} = this;
+		let desc = chain ? `Chain:${chain}` : `Type:${type}`;
+		return `[${name}] ${title} (${desc})`;
+	}
 	toObject() {
 		let {type, name, title, chain} = this;
 		return {type, name, title, chain};

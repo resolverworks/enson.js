@@ -178,12 +178,14 @@ class Coin {
 				let names = coinTypeToNameMap[type];
 				if (names) {
 					coin = new Coin(type);
+					let [name, title] = names; // TODO: remove "[LEGACY] "-prefix?
 					Object.defineProperties(coin, {
-						name: {value: names[0], enumerable: true},
-						title: {value: names[1], enumerable: true},
+						name: {value: name, enumerable: true},
+						title: {value: title, enumerable: true},
 						parse: {value: decode},
 						format: {value: encode},
 					});
+					if (name.endsWith('Legacy')) coin.legacy = true; // REE
 					COINS.set(type, coin); // memoize
 				} else {
 					coin = new UnnamedEVMCoin(type);
@@ -202,7 +204,9 @@ class Coin {
 		} else if (name.startsWith(PREFIX_UNKNOWN)) {
 			type = BigInt(name.slice(PREFIX_UNKNOWN.length));
 		} else {
-			type = coinNameToTypeMap[name.toLowerCase()];
+			let key = name.trim().toLowerCase();
+			if (key.endsWith('legacy')) key = key.slice(0, -6) + 'Legacy'; // REE
+			type = coinNameToTypeMap[key];
 			if (!is_number(type)) throw error_with(`unknown coin: ${name}`, {name});
 		}
 		return this.fromType(type);
@@ -216,7 +220,14 @@ class Coin {
 	get chain() {
 		return Coin.chain(this.type); // meh: this.constructor
 	}
-	// TODO: does this need toJSON() and toString()
+	toJSON() {
+		return '0x' + this.type.toString(16);
+	}
+	toString() {
+		let {type, name, title, chain} = this;
+		let desc = chain ? `Chain:${chain}` : `Type:${type}`;
+		return `[${name}] ${title} (${desc})`;
+	}
 	toObject() {
 		let {type, name, title, chain} = this;
 		return {type, name, title, chain};
@@ -514,7 +525,7 @@ const Arweave = Object.assign(new CodedHash, {
 	}
 });
 
-const SPECS = Object.freeze([
+const SPECS = [
 	IPFS,
 	IPNS,
 	Swarm,
@@ -523,7 +534,7 @@ const SPECS = Object.freeze([
 	Onion,
 	DataURL,
 	GenericURL
-]);
+];
 const CODEC_MAP = new Map(SPECS.map(x => [x.codec, x]));
 const SCHEME_MAP = new Map(SPECS.filter(x => x.scheme).map(x => [x.scheme, x]));
 
@@ -666,6 +677,10 @@ function split_url(url) {
 	}
 	return {scheme, authority, rest};
 }
+
+// freezing
+Object.freeze(SPECS);
+SPECS.forEach(Object.freeze);
 
 // https://github.com/ethereum/EIPs/pull/619/files/9977cf4c2646b46f367e458a939888f93499990c#diff-5692e3f9c0bdb6bf2dbacbdec7059b3d70fcec8a12da584e598dff53e020cf93
 

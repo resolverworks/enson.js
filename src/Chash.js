@@ -1,6 +1,6 @@
 import {error_with, array_equals, utf8_from_bytes, is_string, phex_from_bytes, bytes_from, try_coerce_bytes} from './utils.js';
 import {CID, uvarint, Base64URL, Base64, Base32} from '@adraffy/cid';
-import {keccak_256, sha3_256} from '@noble/hashes/sha3';
+import {sha3_256} from '@noble/hashes/sha3';
 import {utf8ToBytes, toBytes} from '@noble/hashes/utils';
 
 const SCHEME_SEPARATOR = '://';
@@ -216,7 +216,7 @@ export const Arweave = Object.assign(new CodedHash, {
 	}
 });
 
-export const SPECS = Object.freeze([
+export const SPECS = [
 	IPFS,
 	IPNS,
 	Swarm,
@@ -225,7 +225,7 @@ export const SPECS = Object.freeze([
 	Onion,
 	DataURL,
 	GenericURL
-]);
+];
 const CODEC_MAP = new Map(SPECS.map(x => [x.codec, x]));
 const SCHEME_MAP = new Map(SPECS.filter(x => x.scheme).map(x => [x.scheme, x]));
 
@@ -368,3 +368,7 @@ function split_url(url) {
 	}
 	return {scheme, authority, rest};
 }
+
+// freezing
+Object.freeze(SPECS);
+SPECS.forEach(Object.freeze);

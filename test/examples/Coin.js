@@ -15,3 +15,9 @@ console.log($eth.parse(address.toUpperCase()));
 
 console.log(Coin.from('btc'));
 console.log(Coin.from(0));
+
+console.log(Coin.from('etclegacy'));
+console.log(Coin.from('etcLegacy'));
+
+console.log(Coin.from('eth').toString());
+console.log(Coin.from('eth').toJSON());
