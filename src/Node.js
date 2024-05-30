@@ -9,8 +9,8 @@ export class Node extends Map {
 	static create(name) {
 		return this.root().create(name);
 	}
-	static root(tag) {
-		return new this(`[${tag || 'root'}]`);
+	static root(tag = 'root') {
+		return new this(`[${tag}]`);
 	}
 	constructor(label, parent) {
 		super();

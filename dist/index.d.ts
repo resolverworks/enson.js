@@ -170,9 +170,9 @@ export class Node extends Map {
 	get prettyName(): string;
 	get name(): string;
 
-	get root(): number;
 	get depth(): number;
 	get nodeCount(): number;
+	get root(): Node;
 	path(includeRoot?: boolean): Node[];
 
 	find(name: ToName): Node | undefined;
