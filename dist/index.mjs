@@ -1058,7 +1058,10 @@ class Profile {
 			// https://github.com/ensdomains/ensjs-v3/blob/7e01ad8579c08b453fc64b1972b764b6d884b774/packages/ensjs/src/functions/public/getRecords.ts#L33
 			if (Array.isArray(x.texts)) this.setText(x.texts);
 			if (Array.isArray(x.coins)) this.setCoin(x.coins);
-			this.chash = !!x.contentHash;
+			this.chash  = !!x.chash || !!x.contentHash;
+			this.pubkey = !!x.pubkey;
+			this.name   = !!x.name;
+			this.addr0  = !!x.addr0;
 			//this.abi = !!x.abi;
 		} else {
 			throw error_with('unknown profile format', {profile: x});
@@ -1114,6 +1117,17 @@ class Profile {
 		if (this.name)   calls.push(make_call(SEL_NAME, node));
 		if (this.addr0)  calls.push(make_call(SEL_ADDR0, node));
 		return calls;
+	}
+	toJSON() {
+		let json = {
+			texts: [...this.texts],
+			coins: [...this.coins],
+		};
+		if (this.chash)  json.chash  = true;
+		if (this.pubkey) json.pubkey = true;
+		if (this.name)   json.name   = true;
+		if (this.addr0)  json.addr0  = true;
+		return json;
 	}
 	/*
 	makeCallForName(name, outer) {
