@@ -16,11 +16,13 @@ function init() {
 	}
 }
 
-// patch around strict parsing
-const {encode: eth_encode, decode: eth_decode_checksum} = getCoderByCoinType(60);
-function eth_decode(s) {
-	return is_samecase_phex(s) && s.length == 42 ? hexToBytes(s.slice(2)) : eth_decode_checksum(s);
-}
+const {encode: eth_encode, decode: eth_decode} = getCoderByCoinType(60);
+// 20240610: fixed https://github.com/ensdomains/address-encoder/issues/400
+// // patch around strict parsing
+// const {encode: eth_encode, decode: eth_decode_checksum} = getCoderByCoinType(60);
+// function eth_decode(s) {
+// 	return is_samecase_phex(s) && s.length == 42 ? hexToBytes(s.slice(2)) : eth_decode_checksum(s);
+// }
 
 export class Coin {
 	static get count() { init(); return COINS.size; }
@@ -67,7 +69,7 @@ export class Coin {
 			}
 			if (coder) {
 				let {encode, decode} = coder;
-				if (decode === eth_decode_checksum) decode = eth_decode; // patch
+				//if (decode === eth_decode_checksum) decode = eth_decode; // patch
 				let names = coinTypeToNameMap[type];
 				if (names) {
 					coin = new Coin(type);
@@ -113,8 +115,8 @@ export class Coin {
 	get chain() {
 		return Coin.chain(this.type); // meh: this.constructor
 	}
-	toJSON() {
-		return '0x' + this.type.toString(16);
+	toJSON(hr) {
+		return hr ? this.name : '0x' + this.type.toString(16);
 	}
 	toString() {
 		let {type, name, title, chain} = this;

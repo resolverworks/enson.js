@@ -358,6 +358,9 @@ export class Profile {
 			}
 		}
 	}
+	getCoins() {
+		return Array.from(this.coins, x => Coin.fromType(x));
+	}
 	makeCallsForName(name) {
 		return this.makeCalls(namehash(name));
 	}
@@ -376,10 +379,10 @@ export class Profile {
 		if (this.addr0)  calls.push(make_call(SEL_ADDR0, node));
 		return calls;
 	}
-	toJSON() {
+	toJSON(hr) {
 		let json = {
 			texts: [...this.texts],
-			coins: [...this.coins],
+			coins: this.getCoins().map(x => x.toJSON(hr)),
 		};
 		if (this.chash)  json.chash  = true;
 		if (this.pubkey) json.pubkey = true;

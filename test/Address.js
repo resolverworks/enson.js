@@ -77,4 +77,12 @@ test('Address', async T => {
 			});
 		});
 	}
+
+
+	for (let chain of [1, 8453]) {
+		let coin = Coin.fromChain(chain);
+		await T.test(`${coin.name}: Checksum`, () => Address.from(coin, '0x51050ec063d393217B436747617aD1C2285Aeeee'));
+		await T.test(`${coin.name}: Upper`,    () => Address.from(coin, '0x51050EC063D393217B436747617AD1C2285AEEEE'));
+		await T.test(`${coin.name}: Lower`,    () => Address.from(coin, '0x51050ec063d393217b436747617ad1c2285aeeee'));
+	}
 });

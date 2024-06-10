@@ -123,11 +123,13 @@ function init() {
 	}
 }
 
-// patch around strict parsing
-const {encode: eth_encode, decode: eth_decode_checksum} = getCoderByCoinType(60);
-function eth_decode(s) {
-	return is_samecase_phex(s) && s.length == 42 ? hexToBytes(s.slice(2)) : eth_decode_checksum(s);
-}
+const {encode: eth_encode, decode: eth_decode} = getCoderByCoinType(60);
+// 20240610: fixed https://github.com/ensdomains/address-encoder/issues/400
+// // patch around strict parsing
+// const {encode: eth_encode, decode: eth_decode_checksum} = getCoderByCoinType(60);
+// function eth_decode(s) {
+// 	return is_samecase_phex(s) && s.length == 42 ? hexToBytes(s.slice(2)) : eth_decode_checksum(s);
+// }
 
 class Coin {
 	static get count() { init(); return COINS.size; }
@@ -174,7 +176,7 @@ class Coin {
 			}
 			if (coder) {
 				let {encode, decode} = coder;
-				if (decode === eth_decode_checksum) decode = eth_decode; // patch
+				//if (decode === eth_decode_checksum) decode = eth_decode; // patch
 				let names = coinTypeToNameMap[type];
 				if (names) {
 					coin = new Coin(type);
@@ -220,8 +222,8 @@ class Coin {
 	get chain() {
 		return Coin.chain(this.type); // meh: this.constructor
 	}
-	toJSON() {
-		return '0x' + this.type.toString(16);
+	toJSON(hr) {
+		return hr ? this.name : '0x' + this.type.toString(16);
 	}
 	toString() {
 		let {type, name, title, chain} = this;
@@ -1100,6 +1102,9 @@ class Profile {
 			}
 		}
 	}
+	getCoins() {
+		return Array.from(this.coins, x => Coin.fromType(x));
+	}
 	makeCallsForName(name) {
 		return this.makeCalls(namehash(name));
 	}
@@ -1118,10 +1123,10 @@ class Profile {
 		if (this.addr0)  calls.push(make_call(SEL_ADDR0, node));
 		return calls;
 	}
-	toJSON() {
+	toJSON(hr) {
 		let json = {
 			texts: [...this.texts],
-			coins: [...this.coins],
+			coins: this.getCoins().map(x => x.toJSON(hr)),
 		};
 		if (this.chash)  json.chash  = true;
 		if (this.pubkey) json.pubkey = true;

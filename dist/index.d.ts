@@ -71,10 +71,11 @@ export class Coin {
 	get chain(): number | undefined;
 	get legacy(): boolean | undefined;
 	get unnamed(): boolean | undefined;
-	toObject(): {type: bigint, name: string, title: string, chain: number | undefined};
 	parse(s: string): Uint8Array;
 	format(v: Uint8Array): string;
 	assertValid(v: Uint8Array): void;
+	toObject(): {type: bigint, name: string, title: string, chain: number | undefined};
+	toJSON(hr?: boolean): string;
 }
 
 export class Address {
@@ -111,6 +112,15 @@ export class Profile {
 
 	makeCallsForName(name: string): Uint8Array[];
 	makeCalls(node: ToData): Uint8Array[];
+
+	toJSON(): {
+		texts: string[];
+		coins: string[];
+		chash?: boolean;
+		pubkey?: boolean;
+		name?: boolean;
+		addr0?: boolean;
+	};
 }
 
 type ManyRecords = Object | [any, any][];

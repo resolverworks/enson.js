@@ -33,3 +33,5 @@ console.log(JSON.stringify(r.toJSON(true), null, '  '));
 
 console.log(Profile.from(r));
 console.log(Profile.from(r).size);
+
+console.log(Profile.from(r).toJSON(true));
