@@ -2,12 +2,66 @@
 
 ⚠️ This repo is under active development!
 
- `npm i @resolverworks/enson`
+ `$ npm i @resolverworks/enson` [&check;](https://www.npmjs.com/package/@resolverworks/enson)
 
 * see [**types**](./dist/index.d.ts) / check [examples](./test/examples/) / uses [ensdomains/**address-encoder**](https://github.com/ensdomains/address-encoder/)
 * (7) core classes: [Coin](./src/Coin.js), [Address](./src/Address.js), [Chash](./src/Chash.js), [Pubkey](./src/Pubkey.js), [Record & Profile](./src/Record.js), [Node](./src/Node.js) 
 * works with [resolverworks/**ezccip.js**](https://github.com/resolverworks/ezccip.js)
 * used by [resolverworks/**TheOffchainGateway.js**](https://github.com/resolverworks/TheOffchainGateway.js)
+
+### Record
+
+```js
+import {Record} from '@resolverworks/enson';
+
+// construct KV records in human-readable notation
+// minimal memory footprint, everything is string/Uint8Array 
+let vitalik = Record.from({
+    name: 'Vitalik',
+    $eth: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
+    $btc: 'bc1pcm5cz7zqmc23ml65m628vrln0fja6hnhewmncya3x6n6rq7t7rdqhgqlvc',
+    avatar: 'eip155:1/erc1155:0xb32979486938aa9694bfc898f35dbed459f44424/10063',
+    '#ipfs': 'k2jmtxrxbr58aa3716vvr99qallufj3qae595op83p37jod4exujup32',
+    '#pubkey': {x: 1, y: 2},
+    '#name': 'vitalik.eth',
+});
+
+// supports all standard resolver functions
+let name = vitalik.text('name'); // "Vitalik"
+let addr60 = vitalik.addr(60); // Uint8Array(20)
+let hash = vitalik.contenthash(); // Uint8Array(38)
+let pubkey = vitalik.pubkey(); // UintArray(64)
+let name = vitalik.name(); // "vitalik.eth"
+
+// access wrapped values
+vitalik.getAddress(60); // Address()
+vitalik.getChash(); // Chash()
+vitalik.getPubkey(); // Pubkey()
+
+let calls = vitalik.makeSetters({name: 'vitalik.eth'}); // calldata
+```
+
+### Profile
+
+```js
+import {Record} from '@resolverworks/enson';
+
+let profile0 = Profile.ENS(); // default ENS profile
+
+let profile = Profile.from(vitalik);
+// Profile {
+//   texts: Set(2) { 'name', 'avatar' },
+//   addrs: Set(2) { 60n, 0n },
+//   chash: true,
+//   pubkey: true,
+//   name: true,
+//   addr0: false
+// }
+let calls = profile.makeGetters({name: 'nick.eth'}); // calldata 
+let answers = ...; // do the calls using ethers or whatever 
+let nick = new Record();
+nick.parseCalls(calls, answers);
+```
 
 ### Coin
 
@@ -57,57 +111,6 @@ json.toObject(); // {protocol: {codec: 74565, name: 'DataURL'}, mime: 'applicati
 json.toURL(); // "data:application/json;base64,eyJuaWNlIjoiY2hvbmsifQ=="
 
 let file = Chash.from(readFileSync('chonk.mp4'), 'video/mp4');
-```
-
-### Record
-
-```js
-import {Record} from '@resolverworks/enson';
-
-// construct KV records in human-readable notation
-// minimal memory footprint, everything is string/Uint8Array 
-let vitalik = Record.from({
-    name: 'Vitalik',
-    $eth: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
-    $btc: 'bc1pcm5cz7zqmc23ml65m628vrln0fja6hnhewmncya3x6n6rq7t7rdqhgqlvc',
-    avatar: 'eip155:1/erc1155:0xb32979486938aa9694bfc898f35dbed459f44424/10063',
-    '#ipfs': 'k2jmtxrxbr58aa3716vvr99qallufj3qae595op83p37jod4exujup32',
-    '#pubkey': {x: 1, y: 2},
-    '#name': 'vitalik.eth',
-});
-
-// supports all standard resolver functions
-let name = vitalik.text('name'); // "Vitalik"
-let addr60 = vitalik.addr(60); // Uint8Array(20)
-let hash = vitalik.contenthash(); // Uint8Array(38)
-let pubkey = vitalik.pubkey(); // UintArray(64)
-let name = vitalik.name(); // "vitalik.eth"
-
-vitalik.getAddress(60); // Address()
-vitalik.getChash(); // Chash()
-vitalik.getPubkey(); // Pubkey()
-```
-
-### Profile
-
-```js
-import {Record} from '@resolverworks/enson';
-
-let profile0 = Profile.ENS(); // default ENS profile
-
-let profile = Profile.from(vitalik);
-// Profile {
-//   texts: Set(2) { 'name', 'avatar' },
-//   addrs: Set(2) { 60n, 0n },
-//   chash: true,
-//   pubkey: true,
-//   name: true,
-//   addr0: false
-// }
-let calls = profile.makeCalls('nick.eth'); // calldata 
-let answers = ...; // do the calls using ethers or whatever 
-let nick = new Record();
-nick.parseCalls(calls, answers);
 ```
 
 ### Node

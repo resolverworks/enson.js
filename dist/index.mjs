@@ -1,5 +1,5 @@
 import { getCoderByCoinType, coinTypeToNameMap, coinNameToTypeMap } from '@ensdomains/address-encoder';
-import { utf8ToBytes, hexToBytes, bytesToHex, toBytes, createView } from '@noble/hashes/utils';
+import { utf8ToBytes, hexToBytes, bytesToHex, createView, toBytes } from '@noble/hashes/utils';
 import { keccak_256, sha3_256 } from '@noble/hashes/sha3';
 import { Base64URL, Base32, CID, uvarint, Base64 } from '@adraffy/cid';
 import { ens_beautify, ens_normalize } from '@adraffy/ens-normalize';
@@ -102,11 +102,51 @@ function bigint_at(v, i) {
 }
 
 function array_equals(a, b) {
-	if (a === b) return true;
+	if (!a) return !b;
+	//if (a === b) return true;
 	let n = a.length;
 	let c = b.length === n;
 	for (let i = 0; c && i < n; i++) c = a[i] === b[i];
 	return c;
+}
+
+// s = string, v = bytes, i = address|number|uint256|bool, x = hex|Uint8Array(x32)
+function abi_encode_call(selector, types, values) {
+	let m = values.map((v, i) => {
+		let ty = types[i];
+		if (ty === 's') {
+			ty = 'v';
+			v = utf8ToBytes(v);
+		}
+		if (ty === 'v') {
+			let tail = new Uint8Array((1 + Math.ceil(v.length / 32)) << 5);
+			createView(tail).setUint32(28, v.length);
+			tail.set(v, 32);
+			return [true, tail];
+		} else if (ty === 'i') {
+			return [false, bytes32_from(v)];
+		} else if (ty === 'x') {
+			let u = bytes_from(v, false);
+			if (u.length & 31) throw error_with('ragged bytes', {value: v});
+			return [false, u];
+		} else {
+			throw error_with('unknown type', {type: ty, value: v});
+		}
+	});
+	let buf = new Uint8Array(m.reduce((a, [b, v]) => a + v.length + (b ? 32 : 0), 4));
+	let dv = createView(buf);
+	dv.setUint32(0, selector);
+	let pos = 4;
+	let ptr = m.reduce((a, [b, v]) => a + (b ? 32 : v.length), 0);
+	for (let [b, v] of m) {
+		if (b) {
+			dv.setUint32(pos + 28, ptr); pos += 32;
+			buf.set(v, ptr + 4); ptr += v.length;
+		} else {
+			buf.set(v, pos); pos += v.length;
+		}
+	}
+	return buf;
 }
 
 const COINS = new Map();
@@ -756,6 +796,13 @@ const SEL_PUBKEY = 0xc8690233; // https://adraffy.github.io/keccak.js/test/demo.
 const SEL_NAME   = 0x691f3431; // https://adraffy.github.io/keccak.js/test/demo.html#algo=evm&s=name%28bytes32%29&escape=1&encoding=utf8
 const SEL_ADDR0  = 0x3b3b57de; // https://adraffy.github.io/keccak.js/test/demo.html#algo=evm&s=addr%28bytes32%29&escape=1&encoding=utf8
 
+const SEL_SET_TEXT   = 0x10f13a8c; // https://adraffy.github.io/keccak.js/test/demo.html#algo=evm&s=setText%28bytes32%2Cstring%2Cstring%29&escape=1&encoding=utf8
+const SEL_SET_ADDR   = 0x8b95dd71; // https://adraffy.github.io/keccak.js/test/demo.html#algo=evm&s=setAddr%28bytes32%2Cuint256%2Cbytes%29&escape=1&encoding=utf8
+const SEL_SET_CHASH  = 0x304e6ade; // https://adraffy.github.io/keccak.js/test/demo.html#algo=evm&s=setContenthash%28bytes32%2Cbytes%29&escape=1&encoding=utf8
+const SEL_SET_PUBKEY = 0x29cd62ea; // https://adraffy.github.io/keccak.js/test/demo.html#algo=evm&s=setPubkey%28bytes32%2Cbytes32%2Cbytes32%29&escape=1&encoding=utf8
+const SEL_SET_ADDR0  = 0xd5fa2b00; // https://adraffy.github.io/keccak.js/test/demo.html#algo=evm&s=setAddr%28bytes32%2Caddress%29&escape=1&encoding=utf8
+const SEL_SET_NAME   = 0x77372213; // https://adraffy.github.io/keccak.js/test/demo.html#algo=evm&s=setName%28bytes32%2Cstring%29&escape=1&encoding=utf8
+
 //const SEL_RESOLVE  = 0x9061b923; // https://adraffy.github.io/keccak.js/test/demo.html#algo=evm&s=resolve%28bytes%2Cbytes%29&escape=1&encoding=utf8
 //const SEL_MULTICALL = 0xac9650d8; // https://adraffy.github.io/keccak.js/test/demo.html#algo=evm&s=multicall%28bytes%5B%5D%29&escape=1&encoding=utf8
 
@@ -819,7 +866,7 @@ class Record {
 	}
 	setPubkey(x) {
 		let v = try_coerce_bytes_nonempty(x);
-		this._pubkey =  v ? Pubkey.from(v).bytes : undefined;
+		this._pubkey = v ? Pubkey.from(v).bytes : undefined;
 	}
 	setName(x) {
 		if (x && !is_string(x)) {
@@ -938,6 +985,38 @@ class Record {
 	toJSON(hr) {
 		return Object.fromEntries(this.toEntries(hr));
 	}
+	makeSetters({name, node = 0, addr0 = false, init = new Record()} = {}) {
+		node = name ? namehash(name) : bytes32_from(node);
+		let calls = [];
+		for (let k of new Set([...init._texts.keys(), ...this._texts.keys()])) {
+			let s0 = init._texts.get(k);
+			let s1 = this._texts.get(k);
+			if (s0 !== s1) {
+				calls.push(abi_encode_call(SEL_SET_TEXT, 'iss', [node, k, s1 ?? '']));
+			}
+		}		
+		for (let k of new Set([...init._addrs.keys(), ...this._addrs.keys()])) {
+			let v0 = init._addrs.get(k);
+			let v1 = this._addrs.get(k);
+			if (!array_equals(v0, v1)) {
+				if (addr0 && k == 60) {
+					calls.push(abi_encode_call(SEL_SET_ADDR0, 'ii', [node, k, v1 ? phex_from_bytes(v1) : 0]));
+				} else {
+					calls.push(abi_encode_call(SEL_SET_ADDR, 'iiv', [node, k, v1 ?? []]));
+				}
+			}
+		}
+		if (!array_equals(init._chash, this._chash)) {
+			calls.push(abi_encode_call(SEL_SET_CHASH, 'iv', [node, this._chash || []]));
+		}
+		if (!array_equals(init._pubkey, this._pubkey)) {
+			calls.push(abi_encode_call(SEL_SET_PUBKEY, 'ix', [node, this._pubkey || new Uint8Array(64)]));
+		}
+		if (init._name !== this._name) {
+			calls.push(abi_encode_call(SEL_SET_NAME, 'is', [node, this._name || '']));
+		}
+		return calls;
+	}
 	parseCalls(calls, answers) {
 		if (calls.length != answers.length) {
 			throw error_with('call/answer mismatch', {calls: calls.length, answers: answers.size})
@@ -952,7 +1031,7 @@ class Record {
 	parseCall(call, answer) {
 		try {
 			call = bytes_from(call, false);
-			answer = bytes_from(answer, false);
+			answer = bytes_from(answer, gfalse);
 			if (!answer.length) {
 				throw new Error('no answer');
 			} else if (!((answer.length - 4) & 31)) {
@@ -1130,22 +1209,19 @@ class Profile {
 		if (this.name)   yield PREFIX_NAME;
 		if (this.addr0)  yield PREFIX_ADDR0;
 	}
-	makeCallsForName(name) {
-		return this.makeCalls(namehash(name));
-	}
-	makeCalls(node = 0) {
-		node = bytes32_from(node);
+	makeGetters({name, node = 0} = {}) {
+		node = name ? namehash(name) : bytes32_from(node);
 		let calls = [];
 		for (let x of this.texts) {
-			calls.push(make_call_with_bytes(SEL_TEXT, node, utf8ToBytes(x)));
+			calls.push(abi_encode_call(SEL_TEXT, 'is', [node, x]));
 		}
 		for (let x of this.coins) {
-			calls.push(make_call_with_uint(SEL_ADDR, node, x));
+			calls.push(abi_encode_call(SEL_ADDR, 'ii', [node, x]));
 		}
-		if (this.chash)  calls.push(make_call(SEL_CHASH, node));
-		if (this.pubkey) calls.push(make_call(SEL_PUBKEY, node));
-		if (this.name)   calls.push(make_call(SEL_NAME, node));
-		if (this.addr0)  calls.push(make_call(SEL_ADDR0, node));
+		if (this.chash)  calls.push(abi_encode_call(SEL_CHASH,  'i', [node]));
+		if (this.pubkey) calls.push(abi_encode_call(SEL_PUBKEY, 'i', [node]));
+		if (this.name)   calls.push(abi_encode_call(SEL_NAME,   'i', [node]));
+		if (this.addr0)  calls.push(abi_encode_call(SEL_ADDR0,  'i', [node]));
 		return calls;
 	}
 	toJSON(hr) {
@@ -1159,44 +1235,6 @@ class Profile {
 		json.addr0  = this.addr0;
 		return json;
 	}
-	/*
-	makeCallForName(name, outer) {
-		let calls = this.makeCallsForName(name);
-		if (calls.length === 1) {
-			return encode(SEL_RESOLVE, [{type: 'bytes', value: }])
-		} else if (outer) {
-
-		} else {
-
-		}
-	}
-	*/
-}
-
-function make_call(selector, node) {
-	let v = new Uint8Array(36);
-	let dv = new DataView(v.buffer);
-	dv.setUint32(0, selector);
-	v.set(node, 4);
-	return v;
-}
-function make_call_with_bytes(selector, node, data) {
-	let v = new Uint8Array(100 + (Math.ceil(data.length / 32) << 5));
-	let dv = new DataView(v.buffer);
-	dv.setUint32(0, selector);
-	v.set(node, 4);
-	v[67] = 64;
-	dv.setUint32(96, data.length);
-	v.set(data, 100);
-	return v;
-}
-function make_call_with_uint(selector, node, arg) {
-	let v = new Uint8Array(68);
-	let dv = new DataView(v.buffer);
-	dv.setUint32(0, selector);
-	v.set(node, 4);
-	v.set(bytes32_from(arg), 36);
-	return v;
 }
 
 function safe_uint(i) {
@@ -1349,4 +1387,4 @@ class Node extends Map {
 	}
 }
 
-export { Address, Arweave, Chash, Coin, DataURL, ETH, GenericURL, IPFS, IPNS, Node, Onion, Profile, Pubkey, Record, SPECS, Swarm, UnknownCoin, UnnamedCoin, UnnamedEVMCoin, array_equals, bigint_at, bytes32_from, bytes_from, dns_encoded, error_with, is_bigint, is_number, is_samecase_phex, is_string, namehash, namesplit, phex_from_bytes, try_coerce_bytes, utf8_from_bytes };
+export { Address, Arweave, Chash, Coin, DataURL, ETH, GenericURL, IPFS, IPNS, Node, Onion, Profile, Pubkey, Record, SPECS, Swarm, UnknownCoin, UnnamedCoin, UnnamedEVMCoin, abi_encode_call, array_equals, bigint_at, bytes32_from, bytes_from, dns_encoded, error_with, is_bigint, is_number, is_samecase_phex, is_string, namehash, namesplit, phex_from_bytes, try_coerce_bytes, utf8_from_bytes };

@@ -40,3 +40,5 @@ console.log([...Profile.from(r)]);
 for (let a of r) {
 	console.log(a);
 }
+
+console.log(new Profile().toJSON());

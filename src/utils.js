@@ -99,8 +99,7 @@ export function bigint_at(v, i) {
 }
 
 export function array_equals(a, b) {
-	if (!a) return b ? 1 : 0;
-	if (!b) return -1;
+	if (!a) return !b;
 	//if (a === b) return true;
 	let n = a.length;
 	let c = b.length === n;

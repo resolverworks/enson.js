@@ -113,9 +113,6 @@ export class Profile {
 	getCoins(): Coin[];	
 	[Symbol.iterator](): IterableIterator<string>;
 
-	makeCallsForName(name: string): Uint8Array[];
-	makeCalls(node: ToData): Uint8Array[];
-
 	toJSON(): {
 		texts: string[];
 		coins: string[];
@@ -124,6 +121,11 @@ export class Profile {
 		name: boolean;
 		addr0: boolean;
 	};
+
+	makeGetters(opts?: {
+		name?: ToName,
+		node?: ToData,
+	}): Uint8Array[];
 }
 
 type ManyRecords = Object | [any, any][];
@@ -165,6 +167,13 @@ export class Record {
 	toObject(): {[key: string]: any};
 	toEntries(hr?: boolean): RecordEntry[];
 	toJSON(hr?: boolean): {[key: string]: any};
+
+	makeSetters(opts?: {
+		name?: ToName,
+		node?: ToData,
+		addr0?: boolean,
+		init?: Record,
+	}): Uint8Array[];
 }
 
 export class Node extends Map {
@@ -199,15 +208,15 @@ export class Node extends Map {
 	print(): void;
 }
 
-export function error_with(message: string, options: Object, cause?: any): Error;
+export function error_with(message: string, props: Object, cause?: any): Error;
 export function namesplit(name: ToName): string[];
 export function namehash(name: ToName): Uint8Array;
 export function dns_encoded(name: ToName): Uint8Array;
 
 // function is_number(x: any): boolean;
 // function is_string(x: any): boolean;
-// function maybe_phex(x: any): boolean;
 // function bytes_from_data(x: ToData): Uint8Array;
+// function abi_encode_call(selector: number, types: string, values: any[]): Uint8Array;
 
 export function bytes32_from(x: ToBytes32): Uint8Array;
-export function try_coerce_bytes(x: ToData, no_phex?: boolean): Uint8Array;
+export function try_coerce_bytes(x: ToData, ignore0x?: boolean): Uint8Array;

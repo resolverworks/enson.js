@@ -7,7 +7,7 @@ import {
 	bytes_from, namehash, try_coerce_bytes, abi_encode_call, 
 	array_equals, phex_from_bytes
 } from './utils.js';
-import {createView, utf8ToBytes} from '@noble/hashes/utils';
+import {createView} from '@noble/hashes/utils';
 
 const SEL_TEXT   = 0x59d1d43c; // https://adraffy.github.io/keccak.js/test/demo.html#algo=evm&s=text%28bytes32%2Cstring%29&escape=1&encoding=utf8
 const SEL_ADDR   = 0xf1cb7e06; // https://adraffy.github.io/keccak.js/test/demo.html#algo=evm&s=addr%28bytes32%2Cuint256%29&escape=1&encoding=utf8
@@ -86,7 +86,7 @@ export class Record {
 	}
 	setPubkey(x) {
 		let v = try_coerce_bytes_nonempty(x);
-		this._pubkey =  v ? Pubkey.from(v).bytes : undefined;
+		this._pubkey = v ? Pubkey.from(v).bytes : undefined;
 	}
 	setName(x) {
 		if (x && !is_string(x)) {
@@ -205,17 +205,17 @@ export class Record {
 	toJSON(hr) {
 		return Object.fromEntries(this.toEntries(hr));
 	}
-	makeCalls({name, node = 0, addr0} = {}, init) {
+	makeSetters({name, node = 0, addr0 = false, init = new Record()} = {}) {
 		node = name ? namehash(name) : bytes32_from(node);
 		let calls = [];
-		for (let k of Set.of(...init._texts.keys(), ...this._texts.keys())) {
+		for (let k of new Set([...init._texts.keys(), ...this._texts.keys()])) {
 			let s0 = init._texts.get(k);
 			let s1 = this._texts.get(k);
 			if (s0 !== s1) {
-				calls.push(abi_encode_call(SEL_SET_TEXT, 'iss', [node, k, x ?? '']));
+				calls.push(abi_encode_call(SEL_SET_TEXT, 'iss', [node, k, s1 ?? '']));
 			}
 		}		
-		for (let k of Set.of(...init._addrs.keys(), ...this._addrs.keys())) {
+		for (let k of new Set([...init._addrs.keys(), ...this._addrs.keys()])) {
 			let v0 = init._addrs.get(k);
 			let v1 = this._addrs.get(k);
 			if (!array_equals(v0, v1)) {
@@ -226,7 +226,7 @@ export class Record {
 				}
 			}
 		}
-		if (!array_equals(init._chash, this.chash)) {
+		if (!array_equals(init._chash, this._chash)) {
 			calls.push(abi_encode_call(SEL_SET_CHASH, 'iv', [node, this._chash || []]));
 		}
 		if (!array_equals(init._pubkey, this._pubkey)) {
@@ -429,7 +429,7 @@ export class Profile {
 		if (this.name)   yield PREFIX_NAME;
 		if (this.addr0)  yield PREFIX_ADDR0;
 	}
-	makeCalls({name, node = 0} = {}) {
+	makeGetters({name, node = 0} = {}) {
 		node = name ? namehash(name) : bytes32_from(node);
 		let calls = [];
 		for (let x of this.texts) {

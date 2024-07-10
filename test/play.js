@@ -1,11 +1,11 @@
-import {Profile, Record, Coin, Address, Pubkey, Node} from '../src/index.js';
+import {Profile, Record, Coin, Address, Pubkey, Node, phex_from_bytes} from '../src/index.js';
 
 let p = new Profile();
 p.setText('name');
 p.setText(['a', 'b']);
 p.chash = true;
 
-console.log(p.makeCalls().map(x => Buffer.from(x).toString('hex')));
+console.log(p.makeGetters().map(phex_from_bytes));
 
 let r = Record.from({
 	name: 'Chonker',
