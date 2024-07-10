@@ -1,4 +1,4 @@
-import {bytesToHex, hexToBytes, utf8ToBytes} from '@noble/hashes/utils';
+import {bytesToHex, hexToBytes, utf8ToBytes, createView} from '@noble/hashes/utils';
 import {keccak_256} from '@noble/hashes/sha3';
 
 export function namesplit(x) {
@@ -99,9 +99,50 @@ export function bigint_at(v, i) {
 }
 
 export function array_equals(a, b) {
-	if (a === b) return true;
+	if (!a) return b ? 1 : 0;
+	if (!b) return -1;
+	//if (a === b) return true;
 	let n = a.length;
 	let c = b.length === n;
 	for (let i = 0; c && i < n; i++) c = a[i] === b[i];
 	return c;
+}
+
+// s = string, v = bytes, i = address|number|uint256|bool, x = hex|Uint8Array(x32)
+export function abi_encode_call(selector, types, values) {
+	let m = values.map((v, i) => {
+		let ty = types[i];
+		if (ty === 's') {
+			ty = 'v';
+			v = utf8ToBytes(v);
+		}
+		if (ty === 'v') {
+			let tail = new Uint8Array((1 + Math.ceil(v.length / 32)) << 5);
+			createView(tail).setUint32(28, v.length);
+			tail.set(v, 32);
+			return [true, tail];
+		} else if (ty === 'i') {
+			return [false, bytes32_from(v)];
+		} else if (ty === 'x') {
+			let u = bytes_from(v, false);
+			if (u.length & 31) throw error_with('ragged bytes', {value: v});
+			return [false, u];
+		} else {
+			throw error_with('unknown type', {type: ty, value: v});
+		}
+	});
+	let buf = new Uint8Array(m.reduce((a, [b, v]) => a + v.length + (b ? 32 : 0), 4));
+	let dv = createView(buf);
+	dv.setUint32(0, selector);
+	let pos = 4;
+	let ptr = m.reduce((a, [b, v]) => a + (b ? 32 : v.length), 0);
+	for (let [b, v] of m) {
+		if (b) {
+			dv.setUint32(pos + 28, ptr); pos += 32;
+			buf.set(v, ptr + 4); ptr += v.length;
+		} else {
+			buf.set(v, pos); pos += v.length;
+		}
+	}
+	return buf;
 }

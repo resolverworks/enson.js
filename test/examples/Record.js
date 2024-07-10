@@ -35,3 +35,8 @@ console.log(Profile.from(r));
 console.log(Profile.from(r).size);
 
 console.log(Profile.from(r).toJSON(true));
+console.log([...Profile.from(r)]);
+
+for (let a of r) {
+	console.log(a);
+}

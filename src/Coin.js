@@ -1,6 +1,5 @@
 import {getCoderByCoinType, coinNameToTypeMap, coinTypeToNameMap} from '@ensdomains/address-encoder';
-import {error_with, is_bigint, is_number, is_string, is_samecase_phex, phex_from_bytes, array_equals} from './utils.js';
-import {hexToBytes} from '@noble/hashes/utils';
+import {error_with, is_bigint, is_number, is_string, phex_from_bytes, array_equals} from './utils.js';
 
 const COINS = new Map();
 const TYPE_ETH = 60n;

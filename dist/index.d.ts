@@ -106,9 +106,12 @@ export class Profile {
 	addr0: boolean;
 
 	clear(): void;
-	setCoin(query: CoinQuery | CoinQuery[], on?: boolean): void;
-	setText(key: string | string[], on?: boolean): void;
 	import(record: Record): void;
+	set(key: any | any[], on?: boolean): void;
+	setText(key: string | string[], on?: boolean): void;
+	setCoin(query: CoinQuery | CoinQuery[], on?: boolean): void;
+	getCoins(): Coin[];	
+	[Symbol.iterator](): IterableIterator<string>;
 
 	makeCallsForName(name: string): Uint8Array[];
 	makeCalls(node: ToData): Uint8Array[];
@@ -116,10 +119,10 @@ export class Profile {
 	toJSON(): {
 		texts: string[];
 		coins: string[];
-		chash?: boolean;
-		pubkey?: boolean;
-		name?: boolean;
-		addr0?: boolean;
+		chash: boolean;
+		pubkey: boolean;
+		name: boolean;
+		addr0: boolean;
 	};
 }
 

@@ -759,11 +759,12 @@ const SEL_ADDR0  = 0x3b3b57de; // https://adraffy.github.io/keccak.js/test/demo.
 //const SEL_RESOLVE  = 0x9061b923; // https://adraffy.github.io/keccak.js/test/demo.html#algo=evm&s=resolve%28bytes%2Cbytes%29&escape=1&encoding=utf8
 //const SEL_MULTICALL = 0xac9650d8; // https://adraffy.github.io/keccak.js/test/demo.html#algo=evm&s=multicall%28bytes%5B%5D%29&escape=1&encoding=utf8
 
-const PREFIX_COIN = '$';
-const PREFIX_MAGIC = '#';
+const PREFIX_COIN   = '$';
+const PREFIX_MAGIC  = '#';
 const PREFIX_CHASH  = PREFIX_MAGIC + 'chash';
 const PREFIX_PUBKEY = PREFIX_MAGIC + 'pubkey';
 const PREFIX_NAME   = PREFIX_MAGIC + 'name';
+const PREFIX_ADDR0  = PREFIX_MAGIC + 'addr0'; 
 
 // TODO: add missing profiles, like ABI()
 
@@ -883,27 +884,28 @@ class Record {
 			if (!silent) throw error_with(`set "${key}": ${err.message}`, {key, value}, err);
 		}
 	}
-	_entries(fn) {
-		let m = [...this._texts].map(([k, x]) => [k, fn(x), SEL_TEXT]);
+	*_entries(fn) {
+		for (let [k, x] of this._texts) {
+			yield [k, fn(x), SEL_TEXT];
+		}
 		for (let a of this.getAddresses()) {
-			m.push([PREFIX_COIN + a.coin.name, fn(a), SEL_ADDR]);
+			yield [PREFIX_COIN + a.coin.name, fn(a), SEL_ADDR];
 		}
 		let chash = this.getChash();
 		if (chash) {
-			m.push([PREFIX_CHASH, fn(chash), SEL_CHASH]);
+			yield [PREFIX_CHASH, fn(chash), SEL_CHASH];
 		}
 		let pubkey = this.getPubkey();
 		if (pubkey) {
-			m.push([PREFIX_PUBKEY, fn(pubkey), SEL_PUBKEY]);
+			yield [PREFIX_PUBKEY, fn(pubkey), SEL_PUBKEY];
 		}
 		let {_name} = this;
 		if (_name) {
-			m.push([PREFIX_NAME, fn(_name), SEL_NAME]);
+			yield [PREFIX_NAME, fn(_name), SEL_NAME];
 		}
-		return m;
 	}
 	[Symbol.iterator]() {
-		return this._entries(x => x)[Symbol.iterator]();
+		return this._entries(x => x);
 	}
 	toEntries(hr) {
 		let m = [...this._texts];
@@ -1069,25 +1071,38 @@ class Profile {
 			throw error_with('unknown profile format', {profile: x});
 		}
 	}
-	setProp(x, on = true) {
+	set(x, on = true) {
 		if (Array.isArray(x)) {
-			for (let y of x) this.setProp(y, on);
-		} else {
-			switch (x) {
-				case PREFIX_CHASH:  this.chash  = on; break;
-				case PREFIX_PUBKEY: this.pubkey = on; break;
-				case PREFIX_NAME:   this.name   = on; break;
-				default: throw error_with('unknown prop', {prop: x});
+			for (let y of x) this.set(y, on);
+		} else if (is_string(x)) {
+			if (x.startsWith(PREFIX_MAGIC)) {
+				switch (x) {
+					case PREFIX_CHASH:  this.chash  = on; break;
+					case PREFIX_PUBKEY: this.pubkey = on; break;
+					case PREFIX_NAME:   this.name   = on; break;
+					case PREFIX_ADDR0:	this.addr0  = on; break;
+					default: throw error_with('unknown property', {prop: x});
+				}
+			} else if (x.startsWith(PREFIX_COIN)) {
+				this.setCoin(x.slice(PREFIX_COIN.length), on);
+			} else {
+				this.setText(x, on);
 			}
+		} else {
+			this.setCoin(x, on);
 		}
 	}
 	setText(x, on = true) {
 		if (Array.isArray(x)) {
 			for (let y of x) this.setText(y, on);
-		} else if (on) {
-			this.texts.add(x);
+		} else if (is_string(x)) {
+			if (on) {
+				this.texts.add(x);
+			} else {
+				this.texts.delete(x);
+			}
 		} else {
-			this.texts.delete(x);
+			throw error_with('expected string', {value: x});
 		}
 	}
 	setCoin(x, on = true) {
@@ -1104,6 +1119,16 @@ class Profile {
 	}
 	getCoins() {
 		return Array.from(this.coins, x => Coin.fromType(x));
+	}
+	*[Symbol.iterator]() {
+		yield* Array.from(this.texts);
+		for (let x of this.coins) {
+			yield Coin.fromType(x).name;
+		}
+		if (this.chash)  yield PREFIX_CHASH;
+		if (this.pubkey) yield PREFIX_PUBKEY;
+		if (this.name)   yield PREFIX_NAME;
+		if (this.addr0)  yield PREFIX_ADDR0;
 	}
 	makeCallsForName(name) {
 		return this.makeCalls(namehash(name));
@@ -1128,10 +1153,10 @@ class Profile {
 			texts: [...this.texts],
 			coins: this.getCoins().map(x => x.toJSON(hr)),
 		};
-		if (this.chash)  json.chash  = true;
-		if (this.pubkey) json.pubkey = true;
-		if (this.name)   json.name   = true;
-		if (this.addr0)  json.addr0  = true;
+		json.chash  = this.chash;
+		json.pubkey = this.pubkey;
+		json.name   = this.name;
+		json.addr0  = this.addr0;
 		return json;
 	}
 	/*
