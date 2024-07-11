@@ -139,7 +139,7 @@ export class UnnamedCoin extends Coin {
 
 export class UnnamedEVMCoin extends UnnamedCoin {
 	get name()  { return PREFIX_CHAIN + this.chain; }
-	get title() { return 'Unknown Chain'; }
+	get title() { return 'Unknown Chain Coin'; }
 	parse(s)    { return eth_decode(s); }
 	format(v)   { return eth_encode(v); }
 }

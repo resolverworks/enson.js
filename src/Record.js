@@ -52,6 +52,11 @@ export class Record {
 	constructor() {
 		this._texts  = new Map();
 		this._addrs  = new Map();
+		this.clear();
+	}
+	clear() {
+		this._texts.clear();
+		this._addrs.clear();
 		this._chash  = undefined;
 		this._pubkey = undefined;
 		this._name   = undefined;
@@ -66,7 +71,7 @@ export class Record {
 			if (xs._chash)  this._chash  = xs._chash.slice();
 			if (xs._pubkey) this._pubkey = xs._pubkey.slice();
 			if (xs._name)   this._name   = xs._name;
-		} else if (Array.isArray(xs)) { 
+		} else if (xs?.[Symbol.iterator]) { // entries
 			for (let [k, x] of xs) this.set(k, x, silent);
 		} else {
 			for (let [k, x] of Object.entries(xs)) this.set(k, x, silent);
@@ -371,9 +376,7 @@ export class Profile {
 		}
 	}
 	set(x, on = true) {
-		if (Array.isArray(x)) {
-			for (let y of x) this.set(y, on);
-		} else if (is_string(x)) {
+		if (is_string(x)) {
 			if (x.startsWith(PREFIX_MAGIC)) {
 				switch (x) {
 					case PREFIX_CHASH:  this.chash  = on; break;
@@ -387,25 +390,27 @@ export class Profile {
 			} else {
 				this.setText(x, on);
 			}
+		} else if (x?.[Symbol.iterator]) {
+			for (let y of x) this.set(y, on);
 		} else {
 			this.setCoin(x, on);
 		}
 	}
 	setText(x, on = true) {
-		if (Array.isArray(x)) {
-			for (let y of x) this.setText(y, on);
-		} else if (is_string(x)) {
+		if (is_string(x)) {
 			if (on) {
 				this.texts.add(x);
 			} else {
 				this.texts.delete(x);
 			}
+		} else if (x?.[Symbol.iterator]) {
+			for (let y of x) this.setText(y, on);
 		} else {
 			throw error_with('expected string', {value: x});
 		}
 	}
 	setCoin(x, on = true) {
-		if (Array.isArray(x)) {
+		if (x?.[Symbol.iterator]) {
 			for (let y of x) this.setCoin(y, on);
 		} else {
 			let {type} = Coin.from(x);

@@ -287,7 +287,7 @@ class UnnamedCoin extends Coin {
 
 class UnnamedEVMCoin extends UnnamedCoin {
 	get name()  { return PREFIX_CHAIN + this.chain; }
-	get title() { return 'Unknown Chain'; }
+	get title() { return 'Unknown Chain Coin'; }
 	parse(s)    { return eth_decode(s); }
 	format(v)   { return eth_encode(v); }
 }
@@ -832,6 +832,11 @@ class Record {
 	constructor() {
 		this._texts  = new Map();
 		this._addrs  = new Map();
+		this.clear();
+	}
+	clear() {
+		this._texts.clear();
+		this._addrs.clear();
 		this._chash  = undefined;
 		this._pubkey = undefined;
 		this._name   = undefined;
@@ -1151,9 +1156,7 @@ class Profile {
 		}
 	}
 	set(x, on = true) {
-		if (Array.isArray(x)) {
-			for (let y of x) this.set(y, on);
-		} else if (is_string(x)) {
+		if (is_string(x)) {
 			if (x.startsWith(PREFIX_MAGIC)) {
 				switch (x) {
 					case PREFIX_CHASH:  this.chash  = on; break;
@@ -1167,25 +1170,27 @@ class Profile {
 			} else {
 				this.setText(x, on);
 			}
+		} else if (x?.[Symbol.iterator]) {
+			for (let y of x) this.set(y, on);
 		} else {
 			this.setCoin(x, on);
 		}
 	}
 	setText(x, on = true) {
-		if (Array.isArray(x)) {
-			for (let y of x) this.setText(y, on);
-		} else if (is_string(x)) {
+		if (is_string(x)) {
 			if (on) {
 				this.texts.add(x);
 			} else {
 				this.texts.delete(x);
 			}
+		} else if (x?.[Symbol.iterator]) {
+			for (let y of x) this.setText(y, on);
 		} else {
 			throw error_with('expected string', {value: x});
 		}
 	}
 	setCoin(x, on = true) {
-		if (Array.isArray(x)) {
+		if (x?.[Symbol.iterator]) {
 			for (let y of x) this.setCoin(y, on);
 		} else {
 			let {type} = Coin.from(x);

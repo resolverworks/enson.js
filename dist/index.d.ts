@@ -74,7 +74,7 @@ export class Coin {
 	parse(s: string): Uint8Array;
 	format(v: Uint8Array): string;
 	assertValid(v: Uint8Array): void;
-	toObject(): {type: bigint, name: string, title: string, chain: number | undefined};
+	toObject(): {type: bigint, title: string, name?: string, chain?: number};
 	toJSON(hr?: boolean): string;
 }
 
@@ -93,11 +93,18 @@ export class Address {
 	toJSON(): string;
 }
 
+type ProfileObject = {
+	texts?: string[],
+	coins?: any[],
+	contentHash?: any;
+	chash?: any;
+	pubkey?: any;
+	name?: string;
+};
 export class Profile {
 	static ENS(): Profile;
-	static from(x: Record): Profile;
-		
-	get size(): number;
+	static from(value: Record | Profile | ProfileObject): Profile;
+
 	texts: Set<string>;
 	coins: Set<bigint>;
 	chash: boolean;
@@ -105,11 +112,12 @@ export class Profile {
 	name: boolean;	
 	addr0: boolean;
 
+	get size(): number;
 	clear(): void;
-	import(record: Record): void;
-	set(key: any | any[], on?: boolean): void;
-	setText(key: string | string[], on?: boolean): void;
-	setCoin(query: CoinQuery | CoinQuery[], on?: boolean): void;
+	import(value: Record | Profile | ProfileObject): void;
+	set(key: any | any[], include?: boolean): void;
+	setText(key: string | string[], include?: boolean): void;
+	setCoin(query: CoinQuery | CoinQuery[], include?: boolean): void;
 	getCoins(): Coin[];	
 	[Symbol.iterator](): IterableIterator<string>;
 
@@ -128,7 +136,7 @@ export class Profile {
 	}): Uint8Array[];
 }
 
-type ManyRecords = Object | [any, any][];
+type ToRecord = Record | Object | [any, any][];
 type RecordEntry = [key: string, value: any, selector: number];
 export class Record {
 	static readonly CHASH: Symbol;
@@ -137,11 +145,11 @@ export class Record {
 
 	static isSpecialKey(key: any): boolean;
 
-	static from(records: Record | ManyRecords): Record;
+	static from(record: ToRecord): Record;
 	get size(): number;
 	
 	set(key: any, value?: any): void;
-	import(records: ManyRecords): void;
+	import(record: ToRecord): void;
 
 	setText(key: string, value?: string): void;
 	setAddress(...args: Parameters<typeof Address.from>): void;
