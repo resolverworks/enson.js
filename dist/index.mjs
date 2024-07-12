@@ -110,8 +110,11 @@ function array_equals(a, b) {
 	return c;
 }
 
-// s = string, v = bytes, i = address|number|uint256|bool, x = hex|Uint8Array(x32)
-function abi_encode_call(selector, types, values) {
+// s = string
+// v = bytes
+// i = address|number|uint256|bool
+// x = hex|Uint8Array(x32)
+function abi_encode(types, values, selector) {
 	let m = values.map((v, i) => {
 		let ty = types[i];
 		if (ty === 's') {
@@ -133,15 +136,17 @@ function abi_encode_call(selector, types, values) {
 			throw error_with('unknown type', {type: ty, value: v});
 		}
 	});
-	let buf = new Uint8Array(m.reduce((a, [b, v]) => a + v.length + (b ? 32 : 0), 4));
+	if (is_string(selector)) selector = parseInt(selector, 16);
+	let skip = is_number(selector) ? 4 : 0;
+	let buf = new Uint8Array(m.reduce((a, [b, v]) => a + v.length + (b ? 32 : 0), skip));
 	let dv = createView(buf);
-	dv.setUint32(0, selector);
-	let pos = 4;
+	let pos = 0;
+	if (skip) dv.setUint32(0, selector); pos += skip;
 	let ptr = m.reduce((a, [b, v]) => a + (b ? 32 : v.length), 0);
 	for (let [b, v] of m) {
 		if (b) {
 			dv.setUint32(pos + 28, ptr); pos += 32;
-			buf.set(v, ptr + 4); ptr += v.length;
+			buf.set(v, ptr + skip); ptr += v.length;
 		} else {
 			buf.set(v, pos); pos += v.length;
 		}
@@ -997,7 +1002,7 @@ class Record {
 			let s0 = init._texts.get(k);
 			let s1 = this._texts.get(k);
 			if (s0 !== s1) {
-				calls.push(abi_encode_call(SEL_SET_TEXT, 'iss', [node, k, s1 ?? '']));
+				calls.push(abi_encode('iss', [node, k, s1 ?? ''], SEL_SET_TEXT));
 			}
 		}		
 		for (let k of new Set([...init._addrs.keys(), ...this._addrs.keys()])) {
@@ -1005,20 +1010,20 @@ class Record {
 			let v1 = this._addrs.get(k);
 			if (!array_equals(v0, v1)) {
 				if (addr0 && k == 60) {
-					calls.push(abi_encode_call(SEL_SET_ADDR0, 'ii', [node, k, v1 ? phex_from_bytes(v1) : 0]));
+					calls.push(abi_encode('ii', [node, k, v1 ? phex_from_bytes(v1) : 0], SEL_SET_ADDR0));
 				} else {
-					calls.push(abi_encode_call(SEL_SET_ADDR, 'iiv', [node, k, v1 ?? []]));
+					calls.push(abi_encode('iiv', [node, k, v1 ?? []], SEL_SET_ADDR));
 				}
 			}
 		}
 		if (!array_equals(init._chash, this._chash)) {
-			calls.push(abi_encode_call(SEL_SET_CHASH, 'iv', [node, this._chash || []]));
+			calls.push(abi_encode('iv', [node, this._chash || []], SEL_SET_CHASH));
 		}
 		if (!array_equals(init._pubkey, this._pubkey)) {
-			calls.push(abi_encode_call(SEL_SET_PUBKEY, 'ix', [node, this._pubkey || new Uint8Array(64)]));
+			calls.push(abi_encode('ix', [node, this._pubkey || new Uint8Array(64)], SEL_SET_PUBKEY));
 		}
 		if (init._name !== this._name) {
-			calls.push(abi_encode_call(SEL_SET_NAME, 'is', [node, this._name || '']));
+			calls.push(abi_encode('is', [node, this._name || ''], SEL_SET_NAME));
 		}
 		return calls;
 	}
@@ -1036,7 +1041,7 @@ class Record {
 	parseCall(call, answer) {
 		try {
 			call = bytes_from(call, false);
-			answer = bytes_from(answer, gfalse);
+			answer = bytes_from(answer, false);
 			if (!answer.length) {
 				throw new Error('no answer');
 			} else if (!((answer.length - 4) & 31)) {
@@ -1218,15 +1223,15 @@ class Profile {
 		node = name ? namehash(name) : bytes32_from(node);
 		let calls = [];
 		for (let x of this.texts) {
-			calls.push(abi_encode_call(SEL_TEXT, 'is', [node, x]));
+			calls.push(abi_encode('is', [node, x], SEL_TEXT));
 		}
 		for (let x of this.coins) {
-			calls.push(abi_encode_call(SEL_ADDR, 'ii', [node, x]));
+			calls.push(abi_encode('ii', [node, x], SEL_ADDR));
 		}
-		if (this.chash)  calls.push(abi_encode_call(SEL_CHASH,  'i', [node]));
-		if (this.pubkey) calls.push(abi_encode_call(SEL_PUBKEY, 'i', [node]));
-		if (this.name)   calls.push(abi_encode_call(SEL_NAME,   'i', [node]));
-		if (this.addr0)  calls.push(abi_encode_call(SEL_ADDR0,  'i', [node]));
+		if (this.chash)  calls.push(abi_encode('i', [node], SEL_CHASH));
+		if (this.pubkey) calls.push(abi_encode('i', [node], SEL_PUBKEY));
+		if (this.name)   calls.push(abi_encode('i', [node], SEL_NAME));
+		if (this.addr0)  calls.push(abi_encode('i', [node], SEL_ADDR0));
 		return calls;
 	}
 	toJSON(hr) {
@@ -1392,4 +1397,4 @@ class Node extends Map {
 	}
 }
 
-export { Address, Arweave, Chash, Coin, DataURL, ETH, GenericURL, IPFS, IPNS, Node, Onion, Profile, Pubkey, Record, SPECS, Swarm, UnknownCoin, UnnamedCoin, UnnamedEVMCoin, abi_encode_call, array_equals, bigint_at, bytes32_from, bytes_from, dns_encoded, error_with, is_bigint, is_number, is_samecase_phex, is_string, namehash, namesplit, phex_from_bytes, try_coerce_bytes, utf8_from_bytes };
+export { Address, Arweave, Chash, Coin, DataURL, ETH, GenericURL, IPFS, IPNS, Node, Onion, Profile, Pubkey, Record, SPECS, Swarm, UnknownCoin, UnnamedCoin, UnnamedEVMCoin, abi_encode, array_equals, bigint_at, bytes32_from, bytes_from, dns_encoded, error_with, is_bigint, is_number, is_samecase_phex, is_string, namehash, namesplit, phex_from_bytes, try_coerce_bytes, utf8_from_bytes };

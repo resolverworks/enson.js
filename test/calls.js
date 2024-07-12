@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {Record, namehash, phex_from_bytes} from '../src/index.js';
+import {Record, Profile, namehash, phex_from_bytes, abi_encode} from '../src/index.js';
 
 test('Record calls', async T => {
 	await T.test('no change', () => {
@@ -31,5 +31,33 @@ test('Record calls', async T => {
 		assert.equal(calls[1], '0x8b95dd719c8b7ac505c9f0161bbbd04437fce8c630a0886e1ffea00078e298f063a8a5df000000000000000000000000000000000000000000000000000000000000003c0000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000001451050ec063d393217b436747617ad1c2285aeeee000000000000000000000000');
 		assert.equal(calls[2], '0x304e6ade9c8b7ac505c9f0161bbbd04437fce8c630a0886e1ffea00078e298f063a8a5df00000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000014c6c60468747470733a2f2f72616666792e78797a000000000000000000000000');
 		assert.equal(calls[3], '0x29cd62ea9c8b7ac505c9f0161bbbd04437fce8c630a0886e1ffea00078e298f063a8a5df00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002');
+	});
+	await T.test('round-trip: text', () => {
+		let r0 = new Record();
+		r0.set('a', 'raffy');
+		let r1 = new Record();
+		r1.parseCall(Profile.from(r0).makeGetters()[0], abi_encode('s', [r0.text('a')]));
+		assert.deepEqual(r0, r1);
+	});
+	await T.test('round-trip: addr', () => {
+		let r0 = new Record();
+		r0.set('$eth', '0x51050ec063d393217B436747617aD1C2285Aeeee');
+		let r1 = new Record();
+		r1.parseCall(Profile.from(r0).makeGetters()[0], abi_encode('v', [r0.addr(60)]));
+		assert.deepEqual(r0, r1);
+	});
+	await T.test('round-trip: chash', () => {
+		let r0 = new Record();
+		r0.setChash('https://raffy.xyz');
+		let r1 = new Record();
+		r1.parseCall(Profile.from(r0).makeGetters()[0], abi_encode('v', [r0.contenthash()]));
+		assert.deepEqual(r0, r1);
+	});
+	await T.test('round-trip: pubkey', () => {
+		let r0 = new Record();
+		r0.setPubkey({x:1, y: 2});
+		let r1 = new Record();
+		r1.parseCall(Profile.from(r0).makeGetters()[0], abi_encode('x', [r0.pubkey()]));
+		assert.deepEqual(r0, r1);
 	});
 });

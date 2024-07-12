@@ -107,8 +107,11 @@ export function array_equals(a, b) {
 	return c;
 }
 
-// s = string, v = bytes, i = address|number|uint256|bool, x = hex|Uint8Array(x32)
-export function abi_encode_call(selector, types, values) {
+// s = string
+// v = bytes
+// i = address|number|uint256|bool
+// x = hex|Uint8Array(x32)
+export function abi_encode(types, values, selector) {
 	let m = values.map((v, i) => {
 		let ty = types[i];
 		if (ty === 's') {
@@ -130,15 +133,17 @@ export function abi_encode_call(selector, types, values) {
 			throw error_with('unknown type', {type: ty, value: v});
 		}
 	});
-	let buf = new Uint8Array(m.reduce((a, [b, v]) => a + v.length + (b ? 32 : 0), 4));
+	if (is_string(selector)) selector = parseInt(selector, 16);
+	let skip = is_number(selector) ? 4 : 0;
+	let buf = new Uint8Array(m.reduce((a, [b, v]) => a + v.length + (b ? 32 : 0), skip));
 	let dv = createView(buf);
-	dv.setUint32(0, selector);
-	let pos = 4;
+	let pos = 0;
+	if (skip) dv.setUint32(0, selector); pos += skip;
 	let ptr = m.reduce((a, [b, v]) => a + (b ? 32 : v.length), 0);
 	for (let [b, v] of m) {
 		if (b) {
 			dv.setUint32(pos + 28, ptr); pos += 32;
-			buf.set(v, ptr + 4); ptr += v.length;
+			buf.set(v, ptr + skip); ptr += v.length;
 		} else {
 			buf.set(v, pos); pos += v.length;
 		}

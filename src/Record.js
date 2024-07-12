@@ -4,7 +4,7 @@ import {Chash} from './Chash.js';
 import {Pubkey} from './Pubkey.js';
 import {
 	error_with, is_string, bytes32_from, utf8_from_bytes, bigint_at, 
-	bytes_from, namehash, try_coerce_bytes, abi_encode_call, 
+	bytes_from, namehash, try_coerce_bytes, abi_encode, 
 	array_equals, phex_from_bytes
 } from './utils.js';
 import {createView} from '@noble/hashes/utils';
@@ -217,7 +217,7 @@ export class Record {
 			let s0 = init._texts.get(k);
 			let s1 = this._texts.get(k);
 			if (s0 !== s1) {
-				calls.push(abi_encode_call(SEL_SET_TEXT, 'iss', [node, k, s1 ?? '']));
+				calls.push(abi_encode('iss', [node, k, s1 ?? ''], SEL_SET_TEXT));
 			}
 		}		
 		for (let k of new Set([...init._addrs.keys(), ...this._addrs.keys()])) {
@@ -225,20 +225,20 @@ export class Record {
 			let v1 = this._addrs.get(k);
 			if (!array_equals(v0, v1)) {
 				if (addr0 && k == 60) {
-					calls.push(abi_encode_call(SEL_SET_ADDR0, 'ii', [node, k, v1 ? phex_from_bytes(v1) : 0]));
+					calls.push(abi_encode('ii', [node, k, v1 ? phex_from_bytes(v1) : 0], SEL_SET_ADDR0));
 				} else {
-					calls.push(abi_encode_call(SEL_SET_ADDR, 'iiv', [node, k, v1 ?? []]));
+					calls.push(abi_encode('iiv', [node, k, v1 ?? []], SEL_SET_ADDR));
 				}
 			}
 		}
 		if (!array_equals(init._chash, this._chash)) {
-			calls.push(abi_encode_call(SEL_SET_CHASH, 'iv', [node, this._chash || []]));
+			calls.push(abi_encode('iv', [node, this._chash || []], SEL_SET_CHASH));
 		}
 		if (!array_equals(init._pubkey, this._pubkey)) {
-			calls.push(abi_encode_call(SEL_SET_PUBKEY, 'ix', [node, this._pubkey || new Uint8Array(64)]));
+			calls.push(abi_encode('ix', [node, this._pubkey || new Uint8Array(64)], SEL_SET_PUBKEY));
 		}
 		if (init._name !== this._name) {
-			calls.push(abi_encode_call(SEL_SET_NAME, 'is', [node, this._name || '']));
+			calls.push(abi_encode('is', [node, this._name || ''], SEL_SET_NAME));
 		}
 		return calls;
 	}
@@ -256,7 +256,7 @@ export class Record {
 	parseCall(call, answer) {
 		try {
 			call = bytes_from(call, false);
-			answer = bytes_from(answer, gfalse);
+			answer = bytes_from(answer, false);
 			if (!answer.length) {
 				throw new Error('no answer');
 			} else if (!((answer.length - 4) & 31)) {
@@ -438,15 +438,15 @@ export class Profile {
 		node = name ? namehash(name) : bytes32_from(node);
 		let calls = [];
 		for (let x of this.texts) {
-			calls.push(abi_encode_call(SEL_TEXT, 'is', [node, x]));
+			calls.push(abi_encode('is', [node, x], SEL_TEXT));
 		}
 		for (let x of this.coins) {
-			calls.push(abi_encode_call(SEL_ADDR, 'ii', [node, x]));
+			calls.push(abi_encode('ii', [node, x], SEL_ADDR));
 		}
-		if (this.chash)  calls.push(abi_encode_call(SEL_CHASH,  'i', [node]));
-		if (this.pubkey) calls.push(abi_encode_call(SEL_PUBKEY, 'i', [node]));
-		if (this.name)   calls.push(abi_encode_call(SEL_NAME,   'i', [node]));
-		if (this.addr0)  calls.push(abi_encode_call(SEL_ADDR0,  'i', [node]));
+		if (this.chash)  calls.push(abi_encode('i', [node], SEL_CHASH));
+		if (this.pubkey) calls.push(abi_encode('i', [node], SEL_PUBKEY));
+		if (this.name)   calls.push(abi_encode('i', [node], SEL_NAME));
+		if (this.addr0)  calls.push(abi_encode('i', [node], SEL_ADDR0));
 		return calls;
 	}
 	toJSON(hr) {

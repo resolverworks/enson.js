@@ -27,7 +27,7 @@ export class ChashSpec {
 }
 export const Onion: ChashSpec | {
 	fromPubkey(pubkey: ToData, version?: number): Uint8Array;
-};
+}
 export const GenericURL: ChashSpec;
 export const DataURL: ChashSpec;
 export const IPFS: ChashSpec;
@@ -156,6 +156,7 @@ export class Record {
 	setChash(...args: Parameters<typeof Chash.from>): void;
 	setPubkey(...args: Parameters<typeof Pubkey.from>): void;
 	setName(value?: string): void;
+
 	parseCalls(calls: ToData[], answers: ToData[]): void;
 	parseCall(call: ToData, answer: ToData): void;
 
@@ -220,11 +221,11 @@ export function error_with(message: string, props: Object, cause?: any): Error;
 export function namesplit(name: ToName): string[];
 export function namehash(name: ToName): Uint8Array;
 export function dns_encoded(name: ToName): Uint8Array;
+export function abi_encode(types: string, values: any[], selector?: number | string): Uint8Array;
 
 // function is_number(x: any): boolean;
 // function is_string(x: any): boolean;
 // function bytes_from_data(x: ToData): Uint8Array;
-// function abi_encode_call(selector: number, types: string, values: any[]): Uint8Array;
 
 export function bytes32_from(x: ToBytes32): Uint8Array;
 export function try_coerce_bytes(x: ToData, ignore0x?: boolean): Uint8Array;
