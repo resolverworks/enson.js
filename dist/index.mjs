@@ -851,7 +851,7 @@ class Record {
 			if (xs._chash)  this._chash  = xs._chash.slice();
 			if (xs._pubkey) this._pubkey = xs._pubkey.slice();
 			if (xs._name)   this._name   = xs._name;
-		} else if (Array.isArray(xs)) { 
+		} else if (xs?.[Symbol.iterator]) { // entries
 			for (let [k, x] of xs) this.set(k, x, silent);
 		} else {
 			for (let [k, x] of Object.entries(xs)) this.set(k, x, silent);
@@ -1190,7 +1190,7 @@ class Profile {
 		}
 	}
 	setCoin(x, on = true) {
-		if (x?.[Symbol.iterator]) {
+		if (!is_string(x) && x?.[Symbol.iterator]) {
 			for (let y of x) this.setCoin(y, on);
 		} else {
 			let {type} = Coin.from(x);

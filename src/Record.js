@@ -410,7 +410,7 @@ export class Profile {
 		}
 	}
 	setCoin(x, on = true) {
-		if (x?.[Symbol.iterator]) {
+		if (!is_string(x) && x?.[Symbol.iterator]) {
 			for (let y of x) this.setCoin(y, on);
 		} else {
 			let {type} = Coin.from(x);
