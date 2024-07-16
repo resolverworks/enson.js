@@ -13,7 +13,7 @@ test('Record calls', async T => {
 		r0.set('a', 'raffy');
 		
 		let r1 = Record.from(r0);
-		r1.set('a'); // remove
+		r1.delete('a'); // remove
 		r1.set('b', 'chonk'); // add
 
 		let calls = r1.makeSetters({name: 'raffy.eth', init: r0}).map(phex_from_bytes);

@@ -148,7 +148,8 @@ export class Record {
 	static from(record: ToRecord): Record;
 	get size(): number;
 	
-	set(key: any, value?: any): void;
+	set(key: any, value?: any, silent?: boolean): void;
+	delete(key: any, silent?: boolean): void;
 	import(record: ToRecord): void;
 
 	setText(key: string, value?: string): void;

@@ -156,6 +156,9 @@ export class Record {
 			if (!silent) throw error_with(`set "${key}": ${err.message}`, {key, value}, err);
 		}
 	}
+	delete(key, silent) {
+		this.set(key, undefined, silent); // convenience
+	}
 	*_entries(fn) {
 		for (let [k, x] of this._texts) {
 			yield [k, fn(x), SEL_TEXT];

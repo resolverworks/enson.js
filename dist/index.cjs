@@ -104,8 +104,7 @@ function bigint_at(v, i) {
 }
 
 function array_equals(a, b) {
-	if (!a) return !b;
-	//if (a === b) return true;
+	if (!a || !b) return !a === !b;
 	let n = a.length;
 	let c = b.length === n;
 	for (let i = 0; c && i < n; i++) c = a[i] === b[i];
@@ -942,6 +941,9 @@ class Record {
 		} catch (err) {
 			if (!silent) throw error_with(`set "${key}": ${err.message}`, {key, value}, err);
 		}
+	}
+	delete(key, silent) {
+		this.set(key, undefined, silent); // convenience
 	}
 	*_entries(fn) {
 		for (let [k, x] of this._texts) {

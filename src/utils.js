@@ -99,8 +99,7 @@ export function bigint_at(v, i) {
 }
 
 export function array_equals(a, b) {
-	if (!a) return !b;
-	//if (a === b) return true;
+	if (!a || !b) return !a === !b;
 	let n = a.length;
 	let c = b.length === n;
 	for (let i = 0; c && i < n; i++) c = a[i] === b[i];
