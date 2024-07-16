@@ -36,13 +36,13 @@ let vitalik = Record.from({
 });
 console.log(Profile.from(vitalik));
 
-// why the fuck isn't something like this standard in browsers?
-let x = {
-	[Symbol.for('nodejs.util.inspect.custom')]() { 
-		return 'a';
-	}
-};
-console.log(x);
+console.log(vitalik.makeSetters({name: 'vitalik.eth'}).map(phex_from_bytes));
+
+let edit = Record.from(vitalik);
+edit.delete('$btc'); // remove
+edit.set('name', 'Vitamin'); // edit
+edit.set('description', 'CEO of Ethereum'); // add
+console.log(edit.makeSetters({name: 'vitalik.eth', init: vitalik}).map(phex_from_bytes));
 
 console.log(Profile.ENS());
 

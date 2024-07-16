@@ -38,7 +38,15 @@ vitalik.getAddress(60); // Address()
 vitalik.getChash(); // Chash()
 vitalik.getPubkey(); // Pubkey()
 
-let calls = vitalik.makeSetters({name: 'vitalik.eth'}); // calldata
+// generate calldata
+vitalik.makeSetters({name: 'vitalik.eth'});
+
+// generate calldata diff
+let edit = Record.from(vitalik);
+edit.delete('$btc'); // remove
+edit.set('name', 'Vitamin'); // edit
+edit.set('description', 'CEO of Ethereum'); // add
+edit.makeSetters({name: 'vitalik.eth', init: vitalik});
 ```
 
 ### Profile

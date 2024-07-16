@@ -145,12 +145,12 @@ export class Record {
 
 	static isSpecialKey(key: any): boolean;
 
-	static from(record: ToRecord): Record;
+	static from(record: ToRecord, silent?: boolean): Record;
 	get size(): number;
 	
 	set(key: any, value?: any, silent?: boolean): void;
 	delete(key: any, silent?: boolean): void;
-	import(record: ToRecord): void;
+	import(record: ToRecord, silent?: boolean): void;
 
 	setText(key: string, value?: string): void;
 	setAddress(...args: Parameters<typeof Address.from>): void;
