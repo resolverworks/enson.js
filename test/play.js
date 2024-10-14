@@ -65,6 +65,6 @@ console.log(node);
 
 console.log(Address.from('0x57632Ba9A844af0AB7d5cdf98b0056c8d87e3A85').toObject());
 
-const chash = Chash.fromOnion('p53lf57qovyuvwsc6xnrppyply3vtqm7l6pcobkmyqsiofyeznfu5uqd');
+const chash = Chash.fromOnion('2gzyxa5ihm7nsggfxnu52rck2vv4rvmdlkiu3zzui5du4xyclen53wid');
 console.log(chash.toObject());
 console.log(chash.toPhex());

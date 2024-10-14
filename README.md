@@ -112,7 +112,7 @@ ipfs.toObject() // { protocol: {codec: 227, name: 'IPFS'}, cid: {version: 1, cod
 
 let onion = Chash.fromOnion('2gzyxa5ihm7nsggfxnu52rck2vv4rvmdlkiu3zzui5du4xyclen53wid');
 onion.toObject(); // {protocol: {codec: 445, name: 'Onion'}, pubkey: [Uint8Array], checksum: [Uint8Array], version: 3}
-onion.toURL(); // "http://2gzyxa5ihm7nsggfxnu52rck2vv4rvmdlkiu3zzui5du4xyclenq.onion"
+onion.toURL(); // "http://2gzyxa5ihm7nsggfxnu52rck2vv4rvmdlkiu3zzui5du4xyclen53wid.onion'"
 
 let json = Chash.from({nice: 'chonk'}, 'json'); // hint
 json.toObject(); // {protocol: {codec: 74565, name: 'DataURL'}, mime: 'application/json', data: [Uint8Array], abbr: 'json', value: {nice: 'chonk'}}
