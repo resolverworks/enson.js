@@ -4,7 +4,7 @@
 
  `npm i @resolverworks/enson` [&check;](https://www.npmjs.com/package/@resolverworks/enson)
 
-* see [**types**](./dist/index.d.ts) / check [examples](./test/examples/) / uses [ensdomains/**address-encoder**](https://github.com/ensdomains/address-encoder/)
+* see [**types**](./dist/index.d.mts) / check [examples](./test/examples/) / uses [ensdomains/**address-encoder**](https://github.com/ensdomains/address-encoder/)
 * (7) core classes: [Coin](./src/Coin.js), [Address](./src/Address.js), [Chash](./src/Chash.js), [Pubkey](./src/Pubkey.js), [Record & Profile](./src/Record.js), [Node](./src/Node.js) 
 * works with [resolverworks/**ezccip.js**](https://github.com/resolverworks/ezccip.js)
 * used by [resolverworks/**TheOffchainGateway.js**](https://github.com/resolverworks/TheOffchainGateway.js)
