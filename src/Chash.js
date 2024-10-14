@@ -55,7 +55,7 @@ export const Onion = {
 		return v.subarray(0, 32);
 	},
 	toHash(v) {
-		return Base32.encode(this.toPubkey(v));
+		return Base32.encode(v);
 	},
 	toObject(v) {
 		return {

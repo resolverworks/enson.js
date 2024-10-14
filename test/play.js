@@ -1,4 +1,4 @@
-import {Profile, Record, Coin, Address, Pubkey, Node, phex_from_bytes} from '../src/index.js';
+import {Profile, Record, Coin, Address, Pubkey, Chash, Node, phex_from_bytes} from '../src/index.js';
 
 let p = new Profile();
 p.setText('name');
@@ -60,3 +60,11 @@ node.import({
 	}
 });
 console.log(node);
+
+//console.log(Address.from('btc', '0x000307c91ad43258578beb1eb2ac0390845faf9dd1'));
+
+console.log(Address.from('0x57632Ba9A844af0AB7d5cdf98b0056c8d87e3A85').toObject());
+
+const chash = Chash.fromOnion('p53lf57qovyuvwsc6xnrppyply3vtqm7l6pcobkmyqsiofyeznfu5uqd');
+console.log(chash.toObject());
+console.log(chash.toPhex());

@@ -2,7 +2,7 @@
 
 ⚠️ This repo is under active development!
 
- `$ npm i @resolverworks/enson` [&check;](https://www.npmjs.com/package/@resolverworks/enson)
+ `npm i @resolverworks/enson` [&check;](https://www.npmjs.com/package/@resolverworks/enson)
 
 * see [**types**](./dist/index.d.ts) / check [examples](./test/examples/) / uses [ensdomains/**address-encoder**](https://github.com/ensdomains/address-encoder/)
 * (7) core classes: [Coin](./src/Coin.js), [Address](./src/Address.js), [Chash](./src/Chash.js), [Pubkey](./src/Pubkey.js), [Record & Profile](./src/Record.js), [Node](./src/Node.js) 
@@ -39,14 +39,14 @@ vitalik.getChash(); // Chash()
 vitalik.getPubkey(); // Pubkey()
 
 // generate calldata
-vitalik.makeSetters({name: 'vitalik.eth'});
+let calls = vitalik.makeSetters({name: 'vitalik.eth'});
 
 // generate calldata diff
 let edit = Record.from(vitalik);
 edit.delete('$btc'); // remove
 edit.set('name', 'Vitamin'); // edit
 edit.set('description', 'CEO of Ethereum'); // add
-edit.makeSetters({name: 'vitalik.eth', init: vitalik});
+let calls = edit.makeSetters({name: 'vitalik.eth', init: vitalik});
 ```
 
 ### Profile
