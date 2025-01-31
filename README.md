@@ -6,8 +6,8 @@
 
 - see [**types**](./dist/index.d.mts) / check [examples](./test/examples/) / uses [ensdomains/**address-encoder**](https://github.com/ensdomains/address-encoder/)
 - (7) core classes: [Coin](./src/Coin.js), [Address](./src/Address.js), [Chash](./src/Chash.js), [Pubkey](./src/Pubkey.js), [Record & Profile](./src/Record.js), [Node](./src/Node.js)
-- works with [namestone/**ezccip.js**](https://github.com/namestone/ezccip.js)
-- used by [namestone/**TheOffchainGateway.js**](https://github.com/namestone/TheOffchainGateway.js)
+- works with [namestone/**ezccip.js**](https://github.com/namestonehq/ezccip.js)
+- used by [namestone/**TheOffchainGateway.js**](https://github.com/namestonehq/TheOffchainGateway.js)
 
 ### Record
 

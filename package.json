@@ -1,6 +1,6 @@
 {
   "name": "@namestone/enson",
-  "version": "0.0.20",
+  "version": "0.0.21",
   "description": "ENS Object Notation",
   "author": "raffy.eth",
   "license": "MIT",
@@ -18,7 +18,8 @@
     "@adraffy/cid": "^0.0.6",
     "@adraffy/ens-normalize": "^1.11.0",
     "@ensdomains/address-encoder": "^1.1.2",
-    "@noble/hashes": "^1.5.0"
+    "@noble/hashes": "^1.5.0",
+    "@resolverworks/enson": "^0.0.18"
   },
   "devDependencies": {
     "@rollup/plugin-node-resolve": "^15.3.0",
@@ -30,7 +31,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/namestone/enson.js.git"
+    "url": "git+https://github.com/namestonehq/enson.js.git"
   },
   "keywords": [
     "ethereum",
