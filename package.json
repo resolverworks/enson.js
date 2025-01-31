@@ -1,42 +1,42 @@
 {
-	"name": "@resolverworks/enson",
-	"version": "0.0.18",
-	"description": "ENS Object Notation",
-	"author": "raffy.eth",
-	"license": "MIT",
-	"type": "module",
-	"exports": {
-		"types": "./dist/index.d.ts",
-		"import": "./dist/index.mjs",
-		"require": "./dist/index.cjs"
-	},
-	"scripts": {
-		"test": "node test/all.js",
-		"build": "cp dist/index.d.mts dist/index.d.cts && rollup -c"
-	},
-	"dependencies": {
-		"@adraffy/cid": "^0.0.6",
-		"@adraffy/ens-normalize": "^1.11.0",
-		"@ensdomains/address-encoder": "^1.1.2",
-		"@noble/hashes": "^1.5.0"
-	},
-	"devDependencies": {
-		"@rollup/plugin-node-resolve": "^15.3.0",
-		"@rollup/plugin-terser": "^0.4.4",
-		"rollup": "^4.24.0"
-	},
-	"files": [
-		"./dist"
-	],
-	"repository": {
-		"type": "git",
-		"url": "git+https://github.com/resolverworks/enson.js.git"
-	},
-	"keywords": [
-		"ethereum",
-		"ens",
-		"resolver",
-		"contenthash",
-		"cid"
-	]
+  "name": "@namestone/enson",
+  "version": "0.0.20",
+  "description": "ENS Object Notation",
+  "author": "raffy.eth",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    "types": "./dist/index.d.ts",
+    "import": "./dist/index.mjs",
+    "require": "./dist/index.cjs"
+  },
+  "scripts": {
+    "test": "node test/all.js",
+    "build": "cp dist/index.d.mts dist/index.d.cts && rollup -c"
+  },
+  "dependencies": {
+    "@adraffy/cid": "^0.0.6",
+    "@adraffy/ens-normalize": "^1.11.0",
+    "@ensdomains/address-encoder": "^1.1.2",
+    "@noble/hashes": "^1.5.0"
+  },
+  "devDependencies": {
+    "@rollup/plugin-node-resolve": "^15.3.0",
+    "@rollup/plugin-terser": "^0.4.4",
+    "rollup": "^4.24.0"
+  },
+  "files": [
+    "./dist"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/namestone/enson.js.git"
+  },
+  "keywords": [
+    "ethereum",
+    "ens",
+    "resolver",
+    "contenthash",
+    "cid"
+  ]
 }
